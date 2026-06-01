@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { JobType } from '@prisma/client';
 import { JobsService } from '../jobs/jobs.service';
 import { WorkerService } from './worker.service';
@@ -57,6 +58,9 @@ describe('WorkerService', () => {
 
     await expect(worker.processNextJob()).resolves.toBe(true);
     expect(jobs.completeJob).not.toHaveBeenCalled();
-    expect(jobs.failJob).toHaveBeenCalledWith('job-2', 'Unsupported job type: ANALYTICS_AGGREGATION');
+    expect(jobs.failJob).toHaveBeenCalledWith(
+      'job-2',
+      'Unsupported job type: ANALYTICS_AGGREGATION',
+    );
   });
 });

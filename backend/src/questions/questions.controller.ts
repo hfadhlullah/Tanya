@@ -1,5 +1,16 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { CurrentUser, type CurrentUser as CurrentUserType } from '../auth/current-user.decorator';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  CurrentUser,
+  type CurrentUser as CurrentUserType,
+} from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { QuestionsService } from './questions.service';
@@ -20,7 +31,10 @@ export class QuestionsController {
   }
 
   @Delete('session/:sessionId')
-  deleteSession(@CurrentUser() user: CurrentUserType, @Param('sessionId') sessionId: string) {
+  deleteSession(
+    @CurrentUser() user: CurrentUserType,
+    @Param('sessionId') sessionId: string,
+  ) {
     return this.questionsService.deleteSession(user.id, sessionId);
   }
 }

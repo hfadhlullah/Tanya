@@ -33,7 +33,9 @@ describe('SafetyService', () => {
       { topic: 'waris', pattern: 'waris|faraid' },
     ]);
 
-    await expect(service.classifyQuestion('Tanya tentang faraid')).resolves.toEqual({
+    await expect(
+      service.classifyQuestion('Tanya tentang faraid'),
+    ).resolves.toEqual({
       isSensitive: true,
       topic: 'waris',
     });
@@ -42,7 +44,9 @@ describe('SafetyService', () => {
   it('falls back to built-in safety patterns', async () => {
     prisma.sensitiveRule.findMany.mockResolvedValue([]);
 
-    await expect(service.classifyQuestion('Apakah jihad bom dibolehkan?')).resolves.toEqual({
+    await expect(
+      service.classifyQuestion('Apakah jihad bom dibolehkan?'),
+    ).resolves.toEqual({
       isSensitive: true,
       topic: 'kekerasan',
     });
@@ -52,7 +56,9 @@ describe('SafetyService', () => {
     prisma.sensitiveRule.findMany.mockResolvedValue([]);
     llm.complete.mockResolvedValue('TIDAK');
 
-    await expect(service.classifyQuestion('Bagaimana cara wudhu?')).resolves.toEqual({
+    await expect(
+      service.classifyQuestion('Bagaimana cara wudhu?'),
+    ).resolves.toEqual({
       isSensitive: false,
     });
   });
@@ -62,7 +68,9 @@ describe('SafetyService', () => {
       { topic: 'invalid', pattern: '[' },
     ]);
 
-    await expect(service.classifyQuestion('Bagaimana cara wudhu?')).resolves.toEqual({
+    await expect(
+      service.classifyQuestion('Bagaimana cara wudhu?'),
+    ).resolves.toEqual({
       isSensitive: false,
     });
   });

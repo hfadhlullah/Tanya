@@ -1,5 +1,17 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AnswerStatus, AuditAction, QuestionStatus, SensitiveRuleScope, UserRole, UstadzStatus } from '@prisma/client';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  AnswerStatus,
+  AuditAction,
+  QuestionStatus,
+  SensitiveRuleScope,
+  UserRole,
+  UstadzStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { OnboardUstadzDto } from './dto/onboard-ustadz.dto';
@@ -32,7 +44,9 @@ export class UstadzService {
           bio: dto.bio?.trim(),
           credentials: dto.credentials?.trim(),
           publicProfile: dto.publicProfile?.trim(),
-          specialties: dto.specialties.map((specialty) => specialty.trim()).filter(Boolean),
+          specialties: dto.specialties
+            .map((specialty) => specialty.trim())
+            .filter(Boolean),
           madhhab: dto.madhhab?.trim(),
           status: UstadzStatus.PENDING,
         },
@@ -42,7 +56,9 @@ export class UstadzService {
           bio: dto.bio?.trim(),
           credentials: dto.credentials?.trim(),
           publicProfile: dto.publicProfile?.trim(),
-          specialties: dto.specialties.map((specialty) => specialty.trim()).filter(Boolean),
+          specialties: dto.specialties
+            .map((specialty) => specialty.trim())
+            .filter(Boolean),
           madhhab: dto.madhhab?.trim(),
           status: UstadzStatus.PENDING,
         },
@@ -71,7 +87,13 @@ export class UstadzService {
   listPublicUstadz() {
     return this.prisma.ustadzProfile.findMany({
       where: { status: UstadzStatus.APPROVED },
-      select: { id: true, publicName: true, specialties: true, madhhab: true, bio: true },
+      select: {
+        id: true,
+        publicName: true,
+        specialties: true,
+        madhhab: true,
+        bio: true,
+      },
       orderBy: { publicName: 'asc' },
     });
   }
@@ -145,7 +167,9 @@ export class UstadzService {
     }
 
     const [totalVerified, verifiedToday, queueCount] = await Promise.all([
-      this.prisma.answer.count({ where: { verifyingUstadzId: profile.id, status: AnswerStatus.VERIFIED } }),
+      this.prisma.answer.count({
+        where: { verifyingUstadzId: profile.id, status: AnswerStatus.VERIFIED },
+      }),
       this.prisma.answer.count({
         where: {
           verifyingUstadzId: profile.id,
@@ -158,7 +182,11 @@ export class UstadzService {
       }),
     ]);
 
-    return { profile, locked: false, stats: { totalVerified, verifiedToday, queueCount } };
+    return {
+      profile,
+      locked: false,
+      stats: { totalVerified, verifiedToday, queueCount },
+    };
   }
 
   approve(profileId: string) {
@@ -178,21 +206,26 @@ export class UstadzService {
   async getReviewQueue(userId: string) {
     const profile = await this.requireApprovedProfile(userId);
 
-    return this.prisma.answer.findMany({
-      where: {
-        status: AnswerStatus.AI_PENDING,
-        verifyingUstadzId: null,
-        question: {
-          OR: [{ isSensitive: true }, { status: QuestionStatus.ANSWERED_SOURCE }],
+    return this.prisma.answer
+      .findMany({
+        where: {
+          status: AnswerStatus.AI_PENDING,
+          verifyingUstadzId: null,
+          question: {
+            OR: [
+              { isSensitive: true },
+              { status: QuestionStatus.ANSWERED_SOURCE },
+            ],
+          },
         },
-      },
-      orderBy: { createdAt: 'asc' },
-      include: {
-        question: true,
-        citations: { include: { source: true } },
-      },
-      take: 50,
-    }).then((answers) => ({ profileId: profile.id, answers }));
+        orderBy: { createdAt: 'asc' },
+        include: {
+          question: true,
+          citations: { include: { source: true } },
+        },
+        take: 50,
+      })
+      .then((answers) => ({ profileId: profile.id, answers }));
   }
 
   async verifyAnswer(userId: string, answerId: string, dto: VerifyAnswerDto) {
@@ -242,7 +275,9 @@ export class UstadzService {
       await tx.auditLog.create({
         data: {
           actorId: userId,
-          action: dto.body?.trim() ? AuditAction.ANSWER_EDITED : AuditAction.ANSWER_APPROVED,
+          action: dto.body?.trim()
+            ? AuditAction.ANSWER_EDITED
+            : AuditAction.ANSWER_APPROVED,
           entity: 'Answer',
           entityId: answerId,
           metadata: { verifyingUstadzId: profile.id },
@@ -266,7 +301,11 @@ export class UstadzService {
       throw new NotFoundException('Ustadz profile not found');
     }
 
-    const stored = await this.storage.store(file.buffer, file.originalname, file.mimetype);
+    const stored = this.storage.store(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+    );
 
     return this.prisma.credentialFile.create({
       data: {
@@ -280,9 +319,12 @@ export class UstadzService {
   async flagAnswer(userId: string, answerId: string) {
     const profile = await this.requireApprovedProfile(userId);
 
-    const answer = await this.prisma.answer.findUnique({ where: { id: answerId } });
+    const answer = await this.prisma.answer.findUnique({
+      where: { id: answerId },
+    });
     if (!answer) throw new NotFoundException('Answer not found');
-    if (answer.status !== AnswerStatus.AI_PENDING) throw new BadRequestException('Answer already processed');
+    if (answer.status !== AnswerStatus.AI_PENDING)
+      throw new BadRequestException('Answer already processed');
 
     // Claim the answer so it disappears from queue, but keep AI_PENDING status as "flagged"
     return this.prisma.answer.update({

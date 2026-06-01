@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnswerStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -13,7 +14,10 @@ describe('AnswerBankService', () => {
     jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AnswerBankService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        AnswerBankService,
+        { provide: PrismaService, useValue: prisma },
+      ],
     }).compile();
 
     service = module.get(AnswerBankService);
@@ -22,9 +26,13 @@ describe('AnswerBankService', () => {
   it('returns null when no verified answers match', async () => {
     prisma.answer.findMany.mockResolvedValue([]);
 
-    await expect(service.findVerifiedMatch('Bagaimana cara wudhu?')).resolves.toBeNull();
+    await expect(
+      service.findVerifiedMatch('Bagaimana cara wudhu?'),
+    ).resolves.toBeNull();
     expect(prisma.answer.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ status: AnswerStatus.VERIFIED }) }),
+      expect.objectContaining({
+        where: expect.objectContaining({ status: AnswerStatus.VERIFIED }),
+      }),
     );
   });
 
@@ -41,12 +49,31 @@ describe('AnswerBankService', () => {
         language: 'id',
         verifiedAt: new Date(),
         question: { text: 'Bagaimana cara salat yang benar?' },
-        citations: [{ sourceId: 'source-1', label: 'QS 2:43', excerpt: null, source: { id: 'source-1', title: 'Al-Baqarah', reference: 'QS 2:43' } }],
-        verifyingUstadz: { id: 'ustadz-1', publicName: 'Ust. Ahmad', bio: null, specialties: [], madhhab: null },
+        citations: [
+          {
+            sourceId: 'source-1',
+            label: 'QS 2:43',
+            excerpt: null,
+            source: {
+              id: 'source-1',
+              title: 'Al-Baqarah',
+              reference: 'QS 2:43',
+            },
+          },
+        ],
+        verifyingUstadz: {
+          id: 'ustadz-1',
+          publicName: 'Ust. Ahmad',
+          bio: null,
+          specialties: [],
+          madhhab: null,
+        },
       },
     ]);
 
-    const result = await service.findVerifiedMatch('Bagaimana cara salat yang benar?');
+    const result = await service.findVerifiedMatch(
+      'Bagaimana cara salat yang benar?',
+    );
 
     expect(result).not.toBeNull();
     expect(result?.answerId).toBe('answer-1');
@@ -70,7 +97,9 @@ describe('AnswerBankService', () => {
     ]);
 
     // question terms don't overlap with answer body/question
-    const result = await service.findVerifiedMatch('Bagaimana cara salat lima waktu?');
+    const result = await service.findVerifiedMatch(
+      'Bagaimana cara salat lima waktu?',
+    );
 
     expect(result).toBeNull();
   });

@@ -12,7 +12,10 @@ const fallbackSensitivePatterns = [
   { topic: 'takfir', pattern: /\b(kafirkan|takfir|murtadkan)\b/i },
   { topic: 'apostasy', pattern: /\b(murtad|keluar islam|pindah agama)\b/i },
   { topic: 'talak dan perceraian', pattern: /\b(talak|cerai|rujuk|iddah)\b/i },
-  { topic: 'medis agama', pattern: /\b(obat|dokter|medis|bunuh diri|depresi)\b/i },
+  {
+    topic: 'medis agama',
+    pattern: /\b(obat|dokter|medis|bunuh diri|depresi)\b/i,
+  },
 ];
 
 @Injectable()
@@ -67,7 +70,9 @@ export class SafetyService {
 
       const answer = response.trim().toUpperCase();
       const isSensitive = answer.startsWith('YA');
-      this.logger.debug(`LLM classified "${text.slice(0, 60)}" → ${isSensitive ? 'SENSITIVE' : 'SAFE'}`);
+      this.logger.debug(
+        `LLM classified "${text.slice(0, 60)}" → ${isSensitive ? 'SENSITIVE' : 'SAFE'}`,
+      );
       return { isSensitive, topic: isSensitive ? 'llm-classified' : undefined };
     } catch (err) {
       this.logger.warn(`LLM classifier failed, defaulting to safe: ${err}`);

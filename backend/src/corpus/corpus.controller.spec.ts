@@ -24,7 +24,11 @@ describe('CorpusController', () => {
   });
 
   it('delegates source creation', async () => {
-    const dto = { type: 'QURAN' as const, title: 'Kemenag', license: 'approved' };
+    const dto = {
+      type: 'QURAN' as const,
+      title: 'Kemenag',
+      license: 'approved',
+    };
 
     await controller.createSource(dto);
 
@@ -38,8 +42,14 @@ describe('CorpusController', () => {
   });
 
   it('delegates corpus import', async () => {
-    const dto = { type: 'QURAN' as const, title: 'Kemenag', license: 'approved' };
-    const files = { files: [{ originalname: 'quran.json' }] as Express.Multer.File[] };
+    const dto = {
+      type: 'QURAN' as const,
+      title: 'Kemenag',
+      license: 'approved',
+    };
+    const files = {
+      files: [{ originalname: 'quran.json' }] as Express.Multer.File[],
+    };
 
     await controller.importCorpus(dto, files);
 

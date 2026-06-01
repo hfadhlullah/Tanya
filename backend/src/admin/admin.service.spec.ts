@@ -56,7 +56,10 @@ describe('AdminService', () => {
   });
 
   it('updates sensitive rules', async () => {
-    await service.updateSensitiveRule('rule-1', { topic: 'talak', isActive: false });
+    await service.updateSensitiveRule('rule-1', {
+      topic: 'talak',
+      isActive: false,
+    });
 
     expect(prisma.sensitiveRule.update).toHaveBeenCalledWith({
       where: { id: 'rule-1' },

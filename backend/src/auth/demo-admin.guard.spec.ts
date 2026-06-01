@@ -28,6 +28,8 @@ describe('DemoAdminGuard', () => {
   it('rejects missing or mismatched key', () => {
     process.env.DEMO_ADMIN_KEY = 'secret';
 
-    expect(() => guard.canActivate(contextWithHeader('wrong'))).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(contextWithHeader('wrong'))).toThrow(
+      UnauthorizedException,
+    );
   });
 });

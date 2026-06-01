@@ -10,7 +10,9 @@ export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createUstadz(dto: CreateUstadzDto) {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existing) throw new ConflictException('Email already registered');
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
@@ -33,11 +35,24 @@ export class AdminService {
         },
       });
 
-      return { user: { id: user.id, email: user.email, role: user.role }, profile };
+      return {
+        user: { id: user.id, email: user.email, role: user.role },
+        profile,
+      };
     });
   }
 
-  async approveUstadzWithProfile(profileId: string, dto: { publicName?: string; bio?: string; credentials?: string; publicProfile?: string; specialties?: string[]; madhhab?: string }) {
+  async approveUstadzWithProfile(
+    profileId: string,
+    dto: {
+      publicName?: string;
+      bio?: string;
+      credentials?: string;
+      publicProfile?: string;
+      specialties?: string[];
+      madhhab?: string;
+    },
+  ) {
     return this.prisma.ustadzProfile.update({
       where: { id: profileId },
       data: {

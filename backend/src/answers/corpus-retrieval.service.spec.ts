@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { CorpusRetrievalService } from './corpus-retrieval.service';
@@ -48,7 +49,10 @@ describe('CorpusRetrievalService', () => {
   it('falls back to keyword search when vector search returns no matches', async () => {
     prisma.$queryRaw.mockResolvedValue([]);
 
-    await service.findSourceMatches('Apa dalil tentang keutamaan sedekah?', [0.1, 0.2]);
+    await service.findSourceMatches(
+      'Apa dalil tentang keutamaan sedekah?',
+      [0.1, 0.2],
+    );
 
     expect(prisma.$queryRaw).toHaveBeenCalled();
     expect(prisma.corpusChunk.findMany).toHaveBeenCalledWith({

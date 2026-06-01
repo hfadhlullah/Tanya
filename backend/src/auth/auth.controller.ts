@@ -1,7 +1,16 @@
 import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
-import { IsArray, IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsEmail,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 import { AuthService } from './auth.service';
-import { CurrentUser, type CurrentUser as CurrentUserType } from './current-user.decorator';
+import {
+  CurrentUser,
+  type CurrentUser as CurrentUserType,
+} from './current-user.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 class RegisterDto {
@@ -64,7 +73,10 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('me/preferences')
-  updatePreferences(@CurrentUser() user: CurrentUserType, @Body() dto: UpdatePreferencesDto) {
+  updatePreferences(
+    @CurrentUser() user: CurrentUserType,
+    @Body() dto: UpdatePreferencesDto,
+  ) {
     return this.authService.updatePreferences(user.id, dto.preferredUstadzIds);
   }
 }

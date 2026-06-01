@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JobsService } from '../jobs/jobs.service';
@@ -32,7 +33,10 @@ describe('CorpusService', () => {
         CorpusService,
         { provide: PrismaService, useValue: prisma },
         { provide: JobsService, useValue: jobs },
-        { provide: StorageService, useValue: { store: jest.fn(), delete: jest.fn(), getUrl: jest.fn() } },
+        {
+          provide: StorageService,
+          useValue: { store: jest.fn(), delete: jest.fn(), getUrl: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -91,21 +95,39 @@ describe('CorpusService', () => {
 
   it('imports quran json and enqueues embedding jobs', async () => {
     prisma.source.findFirst.mockResolvedValue(null);
-    prisma.source.create.mockResolvedValue({ id: 'source-1', type: 'QURAN', title: 'Quran ID' });
+    prisma.source.create.mockResolvedValue({
+      id: 'source-1',
+      type: 'QURAN',
+      title: 'Quran ID',
+    });
     prisma.corpusChunk.create
       .mockResolvedValueOnce({ id: 'chunk-1' })
       .mockResolvedValueOnce({ id: 'chunk-2' });
 
     const result = await service.importCorpus(
       { type: 'QURAN', title: 'Quran ID', license: 'approved', language: 'id' },
-      [{
-        originalname: 'quran.json',
-        mimetype: 'application/json',
-        buffer: Buffer.from(JSON.stringify([
-          { surah: '1', ayah: '1', surahName: 'Al-Fatihah', text: 'Dengan nama Allah' },
-          { surah: '1', ayah: '2', surahName: 'Al-Fatihah', text: 'Segala puji bagi Allah' },
-        ])),
-      }],
+      [
+        {
+          originalname: 'quran.json',
+          mimetype: 'application/json',
+          buffer: Buffer.from(
+            JSON.stringify([
+              {
+                surah: '1',
+                ayah: '1',
+                surahName: 'Al-Fatihah',
+                text: 'Dengan nama Allah',
+              },
+              {
+                surah: '1',
+                ayah: '2',
+                surahName: 'Al-Fatihah',
+                text: 'Segala puji bagi Allah',
+              },
+            ]),
+          ),
+        },
+      ],
     );
 
     expect(prisma.corpusChunk.create).toHaveBeenNthCalledWith(1, {
@@ -142,28 +164,43 @@ describe('CorpusService', () => {
 
     await expect(
       service.importCorpus(
-        { type: 'HADITH', title: 'Bukhari', license: 'approved', language: 'id' },
-        [{
-          originalname: 'hadith.csv',
-          mimetype: 'text/csv',
-          buffer: Buffer.from('collection,text\nBukhari,Isi hadith'),
-        }],
+        {
+          type: 'HADITH',
+          title: 'Bukhari',
+          license: 'approved',
+          language: 'id',
+        },
+        [
+          {
+            originalname: 'hadith.csv',
+            mimetype: 'text/csv',
+            buffer: Buffer.from('collection,text\nBukhari,Isi hadith'),
+          },
+        ],
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('supports csv imports with quoted multiline text', async () => {
     prisma.source.findFirst.mockResolvedValue(null);
-    prisma.source.create.mockResolvedValue({ id: 'source-2', type: 'HADITH', title: 'Bukhari' });
+    prisma.source.create.mockResolvedValue({
+      id: 'source-2',
+      type: 'HADITH',
+      title: 'Bukhari',
+    });
     prisma.corpusChunk.create.mockResolvedValue({ id: 'chunk-3' });
 
     await service.importCorpus(
       { type: 'HADITH', title: 'Bukhari', license: 'approved', language: 'id' },
-      [{
-        originalname: 'hadith.csv',
-        mimetype: 'text/csv',
-        buffer: Buffer.from('collection,number,text\nBukhari,1,"Baris pertama\nBaris kedua"'),
-      }],
+      [
+        {
+          originalname: 'hadith.csv',
+          mimetype: 'text/csv',
+          buffer: Buffer.from(
+            'collection,number,text\nBukhari,1,"Baris pertama\nBaris kedua"',
+          ),
+        },
+      ],
     );
 
     expect(prisma.corpusChunk.create).toHaveBeenCalledWith({
@@ -179,35 +216,73 @@ describe('CorpusService', () => {
 
     await expect(
       service.importCorpus(
-        { type: 'QURAN', title: 'Quran ID', license: 'approved', language: 'id' },
-        [{
-          originalname: 'quran.json',
-          mimetype: 'application/json',
-          buffer: Buffer.from(JSON.stringify([{ surah: '1', ayah: '1', text: { body: 'bad' } }])),
-        }],
+        {
+          type: 'QURAN',
+          title: 'Quran ID',
+          license: 'approved',
+          language: 'id',
+        },
+        [
+          {
+            originalname: 'quran.json',
+            mimetype: 'application/json',
+            buffer: Buffer.from(
+              JSON.stringify([
+                { surah: '1', ayah: '1', text: { body: 'bad' } },
+              ]),
+            ),
+          },
+        ],
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('imports multiple quran json files into one source', async () => {
     prisma.source.findFirst.mockResolvedValue(null);
-    prisma.source.create.mockResolvedValue({ id: 'source-3', type: 'QURAN', title: 'Quran Bulk' });
+    prisma.source.create.mockResolvedValue({
+      id: 'source-3',
+      type: 'QURAN',
+      title: 'Quran Bulk',
+    });
     prisma.corpusChunk.create
       .mockResolvedValueOnce({ id: 'chunk-4' })
       .mockResolvedValueOnce({ id: 'chunk-5' });
 
     const result = await service.importCorpus(
-      { type: 'QURAN', title: 'Quran Bulk', license: 'approved', language: 'id' },
+      {
+        type: 'QURAN',
+        title: 'Quran Bulk',
+        license: 'approved',
+        language: 'id',
+      },
       [
         {
           originalname: '1.json',
           mimetype: 'application/json',
-          buffer: Buffer.from(JSON.stringify([{ surah: '1', ayah: '1', surahName: 'Al-Fatihah', text: 'Ayat 1' }])),
+          buffer: Buffer.from(
+            JSON.stringify([
+              {
+                surah: '1',
+                ayah: '1',
+                surahName: 'Al-Fatihah',
+                text: 'Ayat 1',
+              },
+            ]),
+          ),
         },
         {
           originalname: '2.json',
           mimetype: 'application/json',
-          buffer: Buffer.from(JSON.stringify([{ surah: '2', ayah: '1', surahName: 'Al-Baqarah', text: 'Ayat 2-1' }])),
+          buffer: Buffer.from(
+            JSON.stringify([
+              {
+                surah: '2',
+                ayah: '1',
+                surahName: 'Al-Baqarah',
+                text: 'Ayat 2-1',
+              },
+            ]),
+          ),
         },
       ],
     );
@@ -225,31 +300,42 @@ describe('CorpusService', () => {
 
   it('imports quran surah-object files with translation text', async () => {
     prisma.source.findFirst.mockResolvedValue(null);
-    prisma.source.create.mockResolvedValue({ id: 'source-4', type: 'QURAN', title: 'Quran Surah JSON' });
+    prisma.source.create.mockResolvedValue({
+      id: 'source-4',
+      type: 'QURAN',
+      title: 'Quran Surah JSON',
+    });
     prisma.corpusChunk.create
       .mockResolvedValueOnce({ id: 'chunk-6' })
       .mockResolvedValueOnce({ id: 'chunk-7' });
 
     await service.importCorpus(
-      { type: 'QURAN', title: 'Quran Surah JSON', license: 'approved', language: 'id' },
+      {
+        type: 'QURAN',
+        title: 'Quran Surah JSON',
+        license: 'approved',
+        language: 'id',
+      },
       [
         {
           originalname: '1.json',
           mimetype: 'application/json',
-          buffer: Buffer.from(JSON.stringify({
-            1: {
-              number: '1',
-              name_latin: 'Al-Fatihah',
-              translations: {
-                id: {
-                  text: {
-                    1: 'Dengan nama Allah Yang Maha Pengasih, Maha Penyayang.',
-                    2: 'Segala puji bagi Allah, Tuhan seluruh alam,',
+          buffer: Buffer.from(
+            JSON.stringify({
+              1: {
+                number: '1',
+                name_latin: 'Al-Fatihah',
+                translations: {
+                  id: {
+                    text: {
+                      1: 'Dengan nama Allah Yang Maha Pengasih, Maha Penyayang.',
+                      2: 'Segala puji bagi Allah, Tuhan seluruh alam,',
+                    },
                   },
                 },
               },
-            },
-          })),
+            }),
+          ),
         },
       ],
     );

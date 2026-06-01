@@ -23,7 +23,9 @@ describe('QuestionsController', () => {
   it('creates questions for the current user', async () => {
     await controller.create({ id: 'user-1' }, { text: 'Apa itu thaharah?' });
 
-    expect(questionsService.create).toHaveBeenCalledWith('user-1', { text: 'Apa itu thaharah?' });
+    expect(questionsService.create).toHaveBeenCalledWith('user-1', {
+      text: 'Apa itu thaharah?',
+    });
   });
 
   it('lists only the current user questions', async () => {

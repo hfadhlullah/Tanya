@@ -1,8 +1,22 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { CurrentUser, type CurrentUser as CurrentUserType } from '../auth/current-user.decorator';
+import {
+  CurrentUser,
+  type CurrentUser as CurrentUserType,
+} from '../auth/current-user.decorator';
 import { DemoAdminGuard } from '../auth/demo-admin.guard';
-import { DemoAuthGuard } from '../auth/demo-auth.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OnboardUstadzDto } from './dto/onboard-ustadz.dto';
 import { VerifyAnswerDto } from './dto/verify-answer.dto';
@@ -32,7 +46,10 @@ export class UstadzController {
 
   @Patch('me/profile')
   @UseGuards(JwtAuthGuard)
-  updateProfile(@CurrentUser() user: CurrentUserType, @Body() dto: OnboardUstadzDto) {
+  updateProfile(
+    @CurrentUser() user: CurrentUserType,
+    @Body() dto: OnboardUstadzDto,
+  ) {
     return this.ustadzService.updateProfile(user.id, dto);
   }
 
@@ -50,7 +67,9 @@ export class UstadzController {
 
   @Post('me/credentials/upload')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
   uploadCredential(
     @CurrentUser() user: CurrentUserType,
     @UploadedFile() file: Express.Multer.File,

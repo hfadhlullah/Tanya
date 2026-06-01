@@ -5,10 +5,13 @@ type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 @Injectable()
 export class LlmClientService {
   private readonly logger = new Logger(LlmClientService.name);
-  private readonly baseUrl = process.env.REQUESTY_BASE_URL ?? 'https://router.requesty.ai/v1';
+  private readonly baseUrl =
+    process.env.REQUESTY_BASE_URL ?? 'https://router.requesty.ai/v1';
   private readonly apiKey = process.env.REQUESTY_API_KEY ?? '';
-  private readonly embeddingModel = process.env.REQUESTY_EMBEDDING_MODEL ?? 'openai/text-embedding-3-small';
-  private readonly chatModel = process.env.REQUESTY_CHAT_MODEL ?? 'openai/gpt-4o-mini';
+  private readonly embeddingModel =
+    process.env.REQUESTY_EMBEDDING_MODEL ?? 'openai/text-embedding-3-small';
+  private readonly chatModel =
+    process.env.REQUESTY_CHAT_MODEL ?? 'openai/gpt-4o-mini';
 
   async embed(text: string): Promise<number[]> {
     const res = await fetch(`${this.baseUrl}/embeddings`, {
@@ -40,7 +43,9 @@ export class LlmClientService {
       throw new Error(`Requesty complete failed: ${res.status}`);
     }
 
-    const json = (await res.json()) as { choices: { message: { content: string } }[] };
+    const json = (await res.json()) as {
+      choices: { message: { content: string } }[];
+    };
     return json.choices[0].message.content;
   }
 

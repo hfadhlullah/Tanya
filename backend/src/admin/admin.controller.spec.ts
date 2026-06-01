@@ -43,6 +43,9 @@ describe('AdminController', () => {
     await controller.updateSensitiveRule('rule-1', dto);
 
     expect(adminService.createSensitiveRule).toHaveBeenCalledWith(dto);
-    expect(adminService.updateSensitiveRule).toHaveBeenCalledWith('rule-1', dto);
+    expect(adminService.updateSensitiveRule).toHaveBeenCalledWith(
+      'rule-1',
+      dto,
+    );
   });
 });

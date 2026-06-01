@@ -7,10 +7,14 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  const uploadDir = process.env.STORAGE_LOCAL_PATH ?? path.join(process.cwd(), 'uploads');
+  const uploadDir =
+    process.env.STORAGE_LOCAL_PATH ?? path.join(process.cwd(), 'uploads');
   app.useStaticAssets(uploadDir, { prefix: '/uploads' });
   const corsOriginEnv = process.env.CORS_ORIGIN;
-  const corsOrigins = corsOriginEnv?.split(',').map((o) => o.trim()).filter(Boolean);
+  const corsOrigins = corsOriginEnv
+    ?.split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
   const corsOrigin =
     corsOriginEnv === '*'
       ? true
@@ -28,4 +32,4 @@ async function bootstrap() {
   );
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();

@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { type CorpusChunk, type Source } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LlmClientService } from './llm-client.service';
 
+export type CorpusMatch = CorpusChunk & { source: Source };
+
 export type CorpusTx = {
-  corpusChunk: {
-    findMany: (args: unknown) => any;
-  };
+  corpusChunk: { findMany: (args: unknown) => Promise<any> };
 };
 
 @Injectable()
@@ -37,7 +38,7 @@ export class CorpusRetrievalService {
     return this.findByKeyword(questionText, tx);
   }
 
-  private async findByEmbedding(embedding: number[]) {
+  private async findByEmbedding(embedding: number[]): Promise<CorpusMatch[]> {
     const vectorLiteral = `[${embedding.join(',')}]`;
     // pgvector cosine distance operator: <=>
     const results = await this.prisma.$queryRaw<
@@ -59,7 +60,10 @@ export class CorpusRetrievalService {
     });
   }
 
-  private findByKeyword(questionText: string, tx: CorpusTx) {
+  private findByKeyword(
+    questionText: string,
+    tx: CorpusTx,
+  ): Promise<CorpusMatch[]> {
     const terms = this.extractTerms(questionText);
 
     if (terms.length === 0) {
@@ -67,7 +71,7 @@ export class CorpusRetrievalService {
         take: 3,
         orderBy: { createdAt: 'desc' },
         include: { source: true },
-      });
+      }) as Promise<CorpusMatch[]>;
     }
 
     return tx.corpusChunk.findMany({
@@ -80,7 +84,7 @@ export class CorpusRetrievalService {
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: { source: true },
-    });
+    }) as Promise<CorpusMatch[]>;
   }
 
   private extractTerms(text: string) {

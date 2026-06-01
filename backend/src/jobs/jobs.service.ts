@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { JobStatus, JobType, Prisma, PrismaClient } from '@prisma/client';
+import { JobStatus, JobType, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 type JobDelegate = Pick<PrismaClient, 'backgroundJob'>;
@@ -17,7 +17,7 @@ export class JobsService {
         type: JobType.CORPUS_EMBEDDING,
         status: JobStatus.PENDING,
         corpusChunkId,
-        payload: { corpusChunkId } as Prisma.InputJsonObject,
+        payload: { corpusChunkId },
       },
     });
   }

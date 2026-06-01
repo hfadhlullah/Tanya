@@ -26,7 +26,10 @@ export type AnswerBankMatch = {
 export class AnswerBankService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findVerifiedMatch(questionText: string, preferredUstadzIds?: string[]): Promise<AnswerBankMatch | null> {
+  async findVerifiedMatch(
+    questionText: string,
+    preferredUstadzIds?: string[],
+  ): Promise<AnswerBankMatch | null> {
     const terms = this.extractTerms(questionText);
     if (terms.length === 0) return null;
 
@@ -35,8 +38,14 @@ export class AnswerBankService {
         status: AnswerStatus.VERIFIED,
         isSensitive: false,
         OR: [
-          ...terms.map((term) => ({ body: { contains: term, mode: 'insensitive' as const } })),
-          ...terms.map((term) => ({ question: { text: { contains: term, mode: 'insensitive' as const } } })),
+          ...terms.map((term) => ({
+            body: { contains: term, mode: 'insensitive' as const },
+          })),
+          ...terms.map((term) => ({
+            question: {
+              text: { contains: term, mode: 'insensitive' as const },
+            },
+          })),
         ],
       },
       take: 10,
@@ -44,7 +53,13 @@ export class AnswerBankService {
       include: {
         citations: { include: { source: true } },
         verifyingUstadz: {
-          select: { id: true, publicName: true, bio: true, specialties: true, madhhab: true },
+          select: {
+            id: true,
+            publicName: true,
+            bio: true,
+            specialties: true,
+            madhhab: true,
+          },
         },
         question: { select: { text: true } },
       },
@@ -54,7 +69,8 @@ export class AnswerBankService {
 
     const scored = answers.map((answer) => {
       const haystack = `${answer.question.text} ${answer.body}`.toLowerCase();
-      const score = terms.filter((term) => haystack.includes(term)).length / terms.length;
+      const score =
+        terms.filter((term) => haystack.includes(term)).length / terms.length;
       return { answer, score };
     });
 
@@ -64,7 +80,9 @@ export class AnswerBankService {
     // Prefer answers from user's preferred ustadzs
     if (preferredUstadzIds?.length) {
       const preferred = qualifying.filter(
-        (s) => s.answer.verifyingUstadzId && preferredUstadzIds.includes(s.answer.verifyingUstadzId),
+        (s) =>
+          s.answer.verifyingUstadzId &&
+          preferredUstadzIds.includes(s.answer.verifyingUstadzId),
       );
       if (preferred.length > 0) {
         preferred.sort((a, b) => b.score - a.score);
@@ -78,9 +96,23 @@ export class AnswerBankService {
   }
 
   private toMatch(answer: {
-    id: string; body: string; language: string; verifyingUstadzId?: string | null;
-    citations: Array<{ sourceId: string; label: string; excerpt: string | null; source: { id: string; title: string; reference: string | null } }>;
-    verifyingUstadz: { id: string; publicName: string; bio: string | null; specialties: string[]; madhhab: string | null } | null;
+    id: string;
+    body: string;
+    language: string;
+    verifyingUstadzId?: string | null;
+    citations: Array<{
+      sourceId: string;
+      label: string;
+      excerpt: string | null;
+      source: { id: string; title: string; reference: string | null };
+    }>;
+    verifyingUstadz: {
+      id: string;
+      publicName: string;
+      bio: string | null;
+      specialties: string[];
+      madhhab: string | null;
+    } | null;
   }): AnswerBankMatch {
     return {
       answerId: answer.id,

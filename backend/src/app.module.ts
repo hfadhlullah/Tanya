@@ -9,7 +9,14 @@ import { QuestionsModule } from './questions/questions.module';
 import { UstadzModule } from './ustadz/ustadz.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, QuestionsModule, CorpusModule, UstadzModule, AdminModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    QuestionsModule,
+    CorpusModule,
+    UstadzModule,
+    AdminModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

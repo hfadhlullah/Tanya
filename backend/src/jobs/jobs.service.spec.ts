@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { Test, TestingModule } from '@nestjs/testing';
 import { JobStatus, JobType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -43,7 +44,10 @@ describe('JobsService', () => {
   it('claims the oldest pending runnable job', async () => {
     prisma.backgroundJob.findFirst.mockResolvedValue({ id: 'job-1' });
     prisma.backgroundJob.updateMany.mockResolvedValue({ count: 1 });
-    prisma.backgroundJob.findUnique.mockResolvedValue({ id: 'job-1', status: JobStatus.PROCESSING });
+    prisma.backgroundJob.findUnique.mockResolvedValue({
+      id: 'job-1',
+      status: JobStatus.PROCESSING,
+    });
 
     await expect(service.claimNextJob()).resolves.toEqual({
       id: 'job-1',
@@ -55,7 +59,10 @@ describe('JobsService', () => {
         attempts: { lt: 3 },
         OR: [
           { status: JobStatus.PENDING, runAfter: { lte: expect.any(Date) } },
-          { status: JobStatus.PROCESSING, leaseExpiresAt: { lt: expect.any(Date) } },
+          {
+            status: JobStatus.PROCESSING,
+            leaseExpiresAt: { lt: expect.any(Date) },
+          },
         ],
       },
       orderBy: [{ runAfter: 'asc' }, { createdAt: 'asc' }],
@@ -66,7 +73,10 @@ describe('JobsService', () => {
         attempts: { lt: 3 },
         OR: [
           { status: JobStatus.PENDING },
-          { status: JobStatus.PROCESSING, leaseExpiresAt: { lt: expect.any(Date) } },
+          {
+            status: JobStatus.PROCESSING,
+            leaseExpiresAt: { lt: expect.any(Date) },
+          },
         ],
       },
       data: {
@@ -86,7 +96,10 @@ describe('JobsService', () => {
       leaseExpiresAt: new Date(Date.now() - 1000),
     });
     prisma.backgroundJob.updateMany.mockResolvedValue({ count: 1 });
-    prisma.backgroundJob.findUnique.mockResolvedValue({ id: 'job-2', status: JobStatus.PROCESSING });
+    prisma.backgroundJob.findUnique.mockResolvedValue({
+      id: 'job-2',
+      status: JobStatus.PROCESSING,
+    });
 
     await expect(service.claimNextJob()).resolves.toEqual({
       id: 'job-2',

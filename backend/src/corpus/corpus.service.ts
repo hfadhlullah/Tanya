@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { JobsService } from '../jobs/jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -8,7 +13,11 @@ import { CreateSourceDto } from './dto/create-source.dto';
 import { ImportCorpusDto } from './dto/import-corpus.dto';
 
 type ImportRow = Record<string, string>;
-type ImportedChunk = { content: string; topic?: string; metadata: Record<string, unknown> };
+type ImportedChunk = {
+  content: string;
+  topic?: string;
+  metadata: Record<string, unknown>;
+};
 
 @Injectable()
 export class CorpusService {
@@ -67,13 +76,20 @@ export class CorpusService {
     sourceId: string,
     file: { buffer: Buffer; originalname: string; mimetype: string },
   ) {
-    const source = await this.prisma.source.findUnique({ where: { id: sourceId }, select: { id: true } });
+    const source = await this.prisma.source.findUnique({
+      where: { id: sourceId },
+      select: { id: true },
+    });
 
     if (!source) {
       throw new NotFoundException('Source not found');
     }
 
-    const stored = await this.storage.store(file.buffer, file.originalname, file.mimetype);
+    const stored = this.storage.store(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+    );
 
     return this.prisma.source.update({
       where: { id: sourceId },
@@ -89,7 +105,10 @@ export class CorpusService {
     });
   }
 
-  async importCorpus(dto: ImportCorpusDto, files: { buffer: Buffer; originalname: string; mimetype: string }[]) {
+  async importCorpus(
+    dto: ImportCorpusDto,
+    files: { buffer: Buffer; originalname: string; mimetype: string }[],
+  ) {
     const sourceData = {
       type: dto.type,
       title: dto.title.trim(),
@@ -118,7 +137,9 @@ export class CorpusService {
       throw new BadRequestException('Import file has no usable records');
     }
 
-    const preparedChunks = rows.map((row, index) => this.prepareImportedChunk(dto.type, row, index));
+    const preparedChunks = rows.map((row, index) =>
+      this.prepareImportedChunk(dto.type, row, index),
+    );
 
     return this.prisma.$transaction(async (tx) => {
       const source = await tx.source.create({ data: sourceData });
@@ -135,13 +156,20 @@ export class CorpusService {
         ),
       );
 
-      await Promise.all(createdChunks.map((chunk) => this.jobsService.enqueueCorpusEmbedding(chunk.id, tx)));
+      await Promise.all(
+        createdChunks.map((chunk) =>
+          this.jobsService.enqueueCorpusEmbedding(chunk.id, tx),
+        ),
+      );
 
       return {
         source,
         importSummary: {
           type: dto.type,
-          fileName: files.length === 1 ? files[0].originalname : `${files.length} files`,
+          fileName:
+            files.length === 1
+              ? files[0].originalname
+              : `${files.length} files`,
           filesProcessed: files.map((file) => file.originalname),
           recordsReceived: rows.length,
           chunksCreated: createdChunks.length,
@@ -151,18 +179,28 @@ export class CorpusService {
     });
   }
 
-  private parseImportFile(type: ImportCorpusDto['type'], file: { buffer: Buffer; originalname: string; mimetype: string }) {
+  private parseImportFile(
+    type: ImportCorpusDto['type'],
+    file: { buffer: Buffer; originalname: string; mimetype: string },
+  ) {
     const raw = file.buffer.toString('utf8').trim();
 
     if (!raw) {
       throw new BadRequestException('Import file is empty');
     }
 
-    const isJson = file.mimetype.includes('json') || file.originalname.toLowerCase().endsWith('.json');
-    const isCsv = file.mimetype.includes('csv') || file.mimetype.includes('text/plain') || file.originalname.toLowerCase().endsWith('.csv');
+    const isJson =
+      file.mimetype.includes('json') ||
+      file.originalname.toLowerCase().endsWith('.json');
+    const isCsv =
+      file.mimetype.includes('csv') ||
+      file.mimetype.includes('text/plain') ||
+      file.originalname.toLowerCase().endsWith('.csv');
 
     if (!isJson && !isCsv) {
-      throw new BadRequestException('Only JSON and CSV corpus imports are supported');
+      throw new BadRequestException(
+        'Only JSON and CSV corpus imports are supported',
+      );
     }
 
     const rows = isJson ? this.parseJsonRows(raw) : this.parseCsvRows(raw);
@@ -193,14 +231,17 @@ export class CorpusService {
       }
 
       return Object.fromEntries(
-        Object.entries(record).map(([key, value]) => [key, this.normalizeImportValue(value, key, index)]),
+        Object.entries(record).map(([key, value]) => [
+          key,
+          this.normalizeImportValue(value, key, index),
+        ]),
       );
     });
   }
 
   private extractJsonRecords(parsed: unknown): unknown[] | null {
     if (Array.isArray(parsed)) {
-      return parsed;
+      return parsed as unknown[];
     }
 
     if (!parsed || typeof parsed !== 'object') {
@@ -214,7 +255,14 @@ export class CorpusService {
       return surahRecord;
     }
 
-    const arrayKeys = ['records', 'data', 'items', 'ayahs', 'verses', 'ayaTranslation'];
+    const arrayKeys = [
+      'records',
+      'data',
+      'items',
+      'ayahs',
+      'verses',
+      'ayaTranslation',
+    ];
 
     for (const key of arrayKeys) {
       if (Array.isArray(object[key])) {
@@ -222,7 +270,9 @@ export class CorpusService {
       }
     }
 
-    const numericEntries = Object.entries(object).filter(([key]) => /^\d+$/.test(key));
+    const numericEntries = Object.entries(object).filter(([key]) =>
+      /^\d+$/.test(key),
+    );
     if (numericEntries.length > 0) {
       return numericEntries.map(([ayah, value]) => {
         if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -243,12 +293,21 @@ export class CorpusService {
     }
 
     const [surahKey, surahValue] = topLevelEntries[0];
-    if (!/^\d+$/.test(surahKey) || !surahValue || typeof surahValue !== 'object' || Array.isArray(surahValue)) {
+    if (
+      !/^\d+$/.test(surahKey) ||
+      !surahValue ||
+      typeof surahValue !== 'object' ||
+      Array.isArray(surahValue)
+    ) {
       return null;
     }
 
     const surah = surahValue as Record<string, unknown>;
-    const translationText = this.getNestedRecord(surah, ['translations', 'id', 'text']);
+    const translationText = this.getNestedRecord(surah, [
+      'translations',
+      'id',
+      'text',
+    ]);
     const arabicText = this.getNestedRecord(surah, ['text']);
     const ayahSource = translationText ?? arabicText;
 
@@ -256,14 +315,16 @@ export class CorpusService {
       return null;
     }
 
-    const surahNumber = typeof surah.number === 'string' || typeof surah.number === 'number'
-      ? String(surah.number)
-      : surahKey;
-    const surahName = typeof surah.name_latin === 'string'
-      ? surah.name_latin
-      : typeof surah.name === 'string'
-        ? surah.name
-        : undefined;
+    const surahNumber =
+      typeof surah.number === 'string' || typeof surah.number === 'number'
+        ? String(surah.number)
+        : surahKey;
+    const surahName =
+      typeof surah.name_latin === 'string'
+        ? surah.name_latin
+        : typeof surah.name === 'string'
+          ? surah.name
+          : undefined;
 
     return Object.entries(ayahSource)
       .filter(([ayah]) => /^\d+$/.test(ayah))
@@ -299,17 +360,25 @@ export class CorpusService {
       .filter((row) => row.some(Boolean));
 
     if (rows.length < 2) {
-      throw new BadRequestException('CSV import must include a header row and at least one record');
+      throw new BadRequestException(
+        'CSV import must include a header row and at least one record',
+      );
     }
 
     const headers = rows[0];
     return rows.slice(1).map((values, index) => {
-
       if (values.length !== headers.length) {
-        throw new BadRequestException(`CSV row ${index + 2} has ${values.length} columns, expected ${headers.length}`);
+        throw new BadRequestException(
+          `CSV row ${index + 2} has ${values.length} columns, expected ${headers.length}`,
+        );
       }
 
-      return Object.fromEntries(headers.map((header, headerIndex) => [header, values[headerIndex] ?? '']));
+      return Object.fromEntries(
+        headers.map((header, headerIndex) => [
+          header,
+          values[headerIndex] ?? '',
+        ]),
+      );
     });
   }
 
@@ -354,7 +423,9 @@ export class CorpusService {
     }
 
     if (inQuotes) {
-      throw new BadRequestException('CSV import contains an unclosed quoted field');
+      throw new BadRequestException(
+        'CSV import contains an unclosed quoted field',
+      );
     }
 
     currentRow.push(current);
@@ -363,20 +434,27 @@ export class CorpusService {
   }
 
   private validateImportRows(type: ImportCorpusDto['type'], rows: ImportRow[]) {
-    const requiredFields = type === 'QURAN'
-      ? ['surah', 'ayah', 'text']
-      : ['collection', 'number', 'text'];
+    const requiredFields =
+      type === 'QURAN'
+        ? ['surah', 'ayah', 'text']
+        : ['collection', 'number', 'text'];
 
     rows.forEach((row, index) => {
       requiredFields.forEach((field) => {
         if (!row[field]?.trim()) {
-          throw new BadRequestException(`Record ${index + 1} is missing required field: ${field}`);
+          throw new BadRequestException(
+            `Record ${index + 1} is missing required field: ${field}`,
+          );
         }
       });
     });
   }
 
-  private prepareImportedChunk(type: ImportCorpusDto['type'], row: ImportRow, index: number): ImportedChunk {
+  private prepareImportedChunk(
+    type: ImportCorpusDto['type'],
+    row: ImportRow,
+    index: number,
+  ): ImportedChunk {
     if (type === 'QURAN') {
       const surah = row.surah.trim();
       const ayah = row.ayah.trim();
@@ -406,7 +484,13 @@ export class CorpusService {
     const book = row.book?.trim();
     const chapter = row.chapter?.trim();
     const text = row.text.trim();
-    const citationLabel = [collection, number ? `No. ${number}` : null, grade || null].filter(Boolean).join(' · ');
+    const citationLabel = [
+      collection,
+      number ? `No. ${number}` : null,
+      grade || null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
 
     return {
       content: text,
@@ -429,10 +513,16 @@ export class CorpusService {
       return '';
     }
 
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
       return String(value);
     }
 
-    throw new BadRequestException(`Record ${index + 1} has non-scalar value for field: ${key}`);
+    throw new BadRequestException(
+      `Record ${index + 1} has non-scalar value for field: ${key}`,
+    );
   }
 }

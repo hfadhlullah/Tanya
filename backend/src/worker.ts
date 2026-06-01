@@ -2,9 +2,11 @@ import { PrismaClient } from '@prisma/client';
 import { JobsService } from './jobs/jobs.service';
 import { WorkerService } from './worker/worker.service';
 
-const baseUrl = process.env.REQUESTY_BASE_URL ?? 'https://router.requesty.ai/v1';
+const baseUrl =
+  process.env.REQUESTY_BASE_URL ?? 'https://router.requesty.ai/v1';
 const apiKey = process.env.REQUESTY_API_KEY ?? '';
-const embeddingModel = process.env.REQUESTY_EMBEDDING_MODEL ?? 'openai/text-embedding-3-small';
+const embeddingModel =
+  process.env.REQUESTY_EMBEDDING_MODEL ?? 'openai/text-embedding-3-small';
 
 async function embed(text: string): Promise<number[]> {
   const res = await fetch(`${baseUrl}/embeddings`, {
@@ -36,8 +38,12 @@ async function bootstrap() {
     await prisma.$disconnect();
   };
 
-  process.once('SIGINT', shutdown);
-  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', () => {
+    void shutdown();
+  });
+  process.once('SIGTERM', () => {
+    void shutdown();
+  });
 
   await worker.run();
 }

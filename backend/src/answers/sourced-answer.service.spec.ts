@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnswerStatus, QuestionStatus, SourceType } from '@prisma/client';
 import { CorpusRetrievalService } from './corpus-retrieval.service';
@@ -55,8 +56,13 @@ describe('SourcedAnswerService', () => {
         },
       },
     ]);
-    llm.complete.mockResolvedValue('Jawaban berdasarkan sumber relevan dan belum ditinjau ustadz.');
-    tx.answer.create.mockResolvedValue({ id: 'answer-1', status: AnswerStatus.AI_PENDING });
+    llm.complete.mockResolvedValue(
+      'Jawaban berdasarkan sumber relevan dan belum ditinjau ustadz.',
+    );
+    tx.answer.create.mockResolvedValue({
+      id: 'answer-1',
+      status: AnswerStatus.AI_PENDING,
+    });
 
     const result = await service.createTierOneAnswer(
       { id: 'question-1', text: 'Bagaimana salat?', language: 'id' },
@@ -101,9 +107,15 @@ describe('SourcedAnswerService', () => {
     corpusRetrieval.embedQuestion.mockResolvedValue(null);
     corpusRetrieval.findSourceMatches.mockResolvedValue([]);
     llm.complete.mockResolvedValue('Jawaban AI umum.');
-    tx.answer.create.mockResolvedValue({ id: 'answer-2', status: AnswerStatus.AI_PENDING });
+    tx.answer.create.mockResolvedValue({
+      id: 'answer-2',
+      status: AnswerStatus.AI_PENDING,
+    });
 
-    await service.createTierOneAnswer({ id: 'question-1', text: 'Apa?', language: 'id' }, tx);
+    await service.createTierOneAnswer(
+      { id: 'question-1', text: 'Apa?', language: 'id' },
+      tx,
+    );
 
     expect(tx.answer.create).toHaveBeenCalled();
   });

@@ -45,10 +45,16 @@ describe('UstadzController', () => {
   });
 
   it('verifies answer as current ustadz', async () => {
-    await controller.verifyAnswer({ id: 'user-1' }, 'answer-1', { body: 'Edited answer' });
-
-    expect(ustadzService.verifyAnswer).toHaveBeenCalledWith('user-1', 'answer-1', {
+    await controller.verifyAnswer({ id: 'user-1' }, 'answer-1', {
       body: 'Edited answer',
     });
+
+    expect(ustadzService.verifyAnswer).toHaveBeenCalledWith(
+      'user-1',
+      'answer-1',
+      {
+        body: 'Edited answer',
+      },
+    );
   });
 });

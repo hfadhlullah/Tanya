@@ -17,15 +17,17 @@ export class StorageService {
   private readonly baseUrl: string;
 
   constructor() {
-    this.uploadDir = process.env.STORAGE_LOCAL_PATH ?? path.join(process.cwd(), 'uploads');
-    this.baseUrl = process.env.STORAGE_BASE_URL ?? 'http://localhost:3000/uploads';
+    this.uploadDir =
+      process.env.STORAGE_LOCAL_PATH ?? path.join(process.cwd(), 'uploads');
+    this.baseUrl =
+      process.env.STORAGE_BASE_URL ?? 'http://localhost:3000/uploads';
 
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
     }
   }
 
-  async store(buffer: Buffer, originalName: string, mimeType: string): Promise<StoredFile> {
+  store(buffer: Buffer, originalName: string, mimeType: string): StoredFile {
     const ext = path.extname(originalName) || '';
     const key = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
     const filePath = path.join(this.uploadDir, key);
@@ -42,7 +44,7 @@ export class StorageService {
     };
   }
 
-  async delete(key: string): Promise<void> {
+  delete(key: string): void {
     const filePath = path.join(this.uploadDir, key);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);

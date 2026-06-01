@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { IsArray, IsOptional, IsString, MaxLength } from 'class-validator';
 import { DemoAdminGuard } from '../auth/demo-admin.guard';
 import { AdminService } from './admin.service';
@@ -25,7 +33,10 @@ export class AdminController {
   }
 
   @Patch('ustadz/:profileId/approve')
-  approveUstadzWithProfile(@Param('profileId') profileId: string, @Body() dto: ApproveUstadzDto) {
+  approveUstadzWithProfile(
+    @Param('profileId') profileId: string,
+    @Body() dto: ApproveUstadzDto,
+  ) {
     return this.adminService.approveUstadzWithProfile(profileId, dto);
   }
 
@@ -55,7 +66,10 @@ export class AdminController {
   }
 
   @Patch('sensitive-rules/:ruleId')
-  updateSensitiveRule(@Param('ruleId') ruleId: string, @Body() dto: UpsertSensitiveRuleDto) {
+  updateSensitiveRule(
+    @Param('ruleId') ruleId: string,
+    @Body() dto: UpsertSensitiveRuleDto,
+  ) {
     return this.adminService.updateSensitiveRule(ruleId, dto);
   }
 
