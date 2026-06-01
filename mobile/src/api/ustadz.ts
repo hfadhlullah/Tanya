@@ -20,6 +20,12 @@ export interface UstadzProfile {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
+export interface UstadzStats {
+  totalVerified: number;
+  verifiedToday: number;
+  queueCount: number;
+}
+
 export interface OnboardUstadzPayload {
   publicName: string;
   bio?: string;
@@ -85,7 +91,7 @@ export async function getUstadzDashboard() {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message ?? 'Dashboard tidak dapat dimuat.');
-  return data as { profile: UstadzProfile; locked: boolean };
+  return data as { profile: UstadzProfile; locked: boolean; stats: UstadzStats };
 }
 
 export async function getReviewQueue() {
@@ -95,6 +101,16 @@ export async function getReviewQueue() {
   const data = await res.json();
   if (!res.ok) throw new Error(data.message ?? 'Antrian review tidak dapat dimuat.');
   return data as ReviewQueue;
+}
+
+export async function flagAnswer(answerId: string) {
+  const res = await fetch(`${apiUrl}/ustadz/answers/${answerId}/flag`, {
+    method: 'PATCH',
+    headers: await headers(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? 'Gagal menandai jawaban.');
+  return data;
 }
 
 export async function verifyAnswer(answerId: string, body?: string) {

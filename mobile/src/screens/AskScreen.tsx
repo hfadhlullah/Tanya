@@ -25,9 +25,10 @@ export interface ChatSession {
 
 interface Props {
   onResetAuth?: () => void;
+  onBack?: () => void;
 }
 
-export function AskScreen({ onResetAuth }: Props) {
+export function AskScreen({ onResetAuth, onBack }: Props) {
   const [loading, setLoading] = useState(false);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [newAnswerIds, setNewAnswerIds] = useState<Set<string>>(new Set());
@@ -183,6 +184,7 @@ export function AskScreen({ onResetAuth }: Props) {
       onEditQuestion={handleEditQuestion}
       onDeleteSession={handleDeleteSession}
       newAnswerIds={newAnswerIds}
+      onBack={onBack}
     />
   );
 }

@@ -144,7 +144,21 @@ export class UstadzService {
       throw new ForbiddenException('Ustadz account is pending approval');
     }
 
-    return { profile, locked: false };
+    const [totalVerified, verifiedToday, queueCount] = await Promise.all([
+      this.prisma.answer.count({ where: { verifyingUstadzId: profile.id, status: AnswerStatus.VERIFIED } }),
+      this.prisma.answer.count({
+        where: {
+          verifyingUstadzId: profile.id,
+          status: AnswerStatus.VERIFIED,
+          verifiedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+        },
+      }),
+      this.prisma.answer.count({
+        where: { status: AnswerStatus.AI_PENDING, verifyingUstadzId: null },
+      }),
+    ]);
+
+    return { profile, locked: false, stats: { totalVerified, verifiedToday, queueCount } };
   }
 
   approve(profileId: string) {
@@ -260,6 +274,20 @@ export class UstadzService {
         fileUrl: stored.url,
         label: label?.trim() ?? file.originalname,
       },
+    });
+  }
+
+  async flagAnswer(userId: string, answerId: string) {
+    const profile = await this.requireApprovedProfile(userId);
+
+    const answer = await this.prisma.answer.findUnique({ where: { id: answerId } });
+    if (!answer) throw new NotFoundException('Answer not found');
+    if (answer.status !== AnswerStatus.AI_PENDING) throw new BadRequestException('Answer already processed');
+
+    // Claim the answer so it disappears from queue, but keep AI_PENDING status as "flagged"
+    return this.prisma.answer.update({
+      where: { id: answerId },
+      data: { verifyingUstadzId: profile.id },
     });
   }
 

@@ -19,7 +19,8 @@ type Screen =
   | 'ustadz_onboarding'
   | 'ustadz_dashboard'
   | 'ustadz_queue'
-  | 'ustadz_review_detail';
+  | 'ustadz_review_detail'
+  | 'ustadz_ask';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('loading');
@@ -72,9 +73,14 @@ export default function App() {
     return (
       <UstadzDashboardScreen
         onOpenQueue={() => setScreen('ustadz_queue')}
+        onTryAsk={() => setScreen('ustadz_ask')}
         onLogout={bootstrap}
       />
     );
+  }
+
+  if (screen === 'ustadz_ask') {
+    return <AskScreen key={sessionKey} onResetAuth={bootstrap} onBack={() => setScreen('ustadz_dashboard')} />;
   }
 
   if (screen === 'ustadz_queue') {

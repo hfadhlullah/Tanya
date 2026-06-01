@@ -21,6 +21,7 @@ import { BottomInputBar } from '../organisms/BottomInputBar';
 import { LoginGateModal } from '../organisms/LoginGateModal';
 import { SidebarDrawer } from '../organisms/SidebarDrawer';
 import { SuggestionChips } from '../molecules/SuggestionChips';
+import { IconButton } from '../atoms/IconButton';
 
 type AskTemplateProps = {
   loading: boolean;
@@ -42,6 +43,7 @@ type AskTemplateProps = {
   onEditQuestion: (question: Question) => void;
   onDeleteSession: (sessionId: string) => void;
   newAnswerIds: Set<string>;
+  onBack?: () => void;
 };
 
 export function AskTemplate({
@@ -64,6 +66,7 @@ export function AskTemplate({
   onEditQuestion,
   onDeleteSession,
   newAnswerIds,
+  onBack,
 }: AskTemplateProps) {
   const listRef = useRef<FlatList>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -100,9 +103,11 @@ export function AskTemplate({
 
       {/* Top bar */}
       <View style={s.topBar}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => setSidebarOpen(true)} activeOpacity={0.7}>
-          <Ionicons name="menu-outline" size={24} color={colors.ink} />
-        </TouchableOpacity>
+        {onBack ? (
+          <IconButton name="arrow-back-outline" onPress={onBack} style={s.iconBtn} />
+        ) : (
+          <IconButton name="menu-outline" onPress={() => setSidebarOpen(true)} style={s.iconBtn} />
+        )}
         <Text style={s.logo}>
           Tanya<Text style={s.logoAccent}>.</Text>
         </Text>

@@ -2,10 +2,14 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  SafeAreaView,
   StyleSheet,
+  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getReviewQueue, type ReviewAnswer } from '../../api/ustadz';
 import { BrandText } from '../../components/atoms/BrandText';
 import { colors } from '../../theme/ui-reference';
@@ -19,15 +23,23 @@ export function UstadzReviewQueueScreen({ onSelect, onBack }: Props) {
   const [answers, setAnswers] = useState<ReviewAnswer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [draftIds, setDraftIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   async function load() {
     try {
       const data = await getReviewQueue();
       setAnswers(data.answers);
+      // Check which answers have saved drafts
+      const keys = await AsyncStorage.getAllKeys();
+      const drafted = new Set(
+        keys
+          .filter((k) => k.startsWith('@tanya_draft_'))
+          .map((k) => k.replace('@tanya_draft_', ''))
+          .filter((id) => data.answers.some((a) => a.id === id)),
+      );
+      setDraftIds(drafted);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -44,7 +56,8 @@ export function UstadzReviewQueueScreen({ onSelect, onBack }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
       <View style={styles.topBar}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <BrandText variant="caption" style={styles.backText}>
@@ -84,6 +97,11 @@ export function UstadzReviewQueueScreen({ onSelect, onBack }: Props) {
                     {item.question.topic}
                   </BrandText>
                 ) : null}
+                {draftIds.has(item.id) && (
+                  <View style={styles.editedBadge}>
+                    <Text style={styles.editedBadgeText}>✎ Diedit</Text>
+                  </View>
+                )}
               </View>
               <BrandText variant="body" style={styles.questionText} numberOfLines={2}>
                 {item.question.text}
@@ -100,7 +118,7 @@ export function UstadzReviewQueueScreen({ onSelect, onBack }: Props) {
           )}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -111,7 +129,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 52,
+    paddingTop: 8,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
@@ -135,4 +153,13 @@ const styles = StyleSheet.create({
   questionText: { fontWeight: '600' },
   preview: { color: colors.muted },
   citationCount: { color: colors.emerald, fontWeight: '600' },
+  editedBadge: {
+    backgroundColor: colors.emeraldSoft,
+    borderRadius: 99,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: colors.emerald,
+  },
+  editedBadgeText: { fontSize: 11, fontWeight: '700', color: colors.emeraldDark },
 });

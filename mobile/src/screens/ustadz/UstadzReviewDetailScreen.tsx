@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,8 +14,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { verifyAnswer, type ReviewAnswer } from '../../api/ustadz';
+import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { verifyAnswer, flagAnswer, type ReviewAnswer } from '../../api/ustadz';
+import { IconButton } from '../../components/atoms/IconButton';
+import { PrimaryButton } from '../../components/atoms/PrimaryButton';
+import { SecondaryButton } from '../../components/atoms/SecondaryButton';
 import { colors } from '../../theme/ui-reference';
+
+function draftKey(answerId: string) {
+  return `@tanya_draft_${answerId}`;
+}
 
 interface Props {
   answer: ReviewAnswer;
@@ -32,12 +42,22 @@ export function UstadzReviewDetailScreen({ answer, queuePosition, onDone, onBack
 
   const successScale = useRef(new Animated.Value(0.5)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
+  const [draftSaved, setDraftSaved] = useState(false);
 
   const isChanged = editedBody.trim() !== answer.body.trim();
   const charCount = editedBody.length;
 
+  // Load saved draft on mount
+  useEffect(() => {
+    AsyncStorage.getItem(draftKey(answer.id)).then((saved) => {
+      if (saved && saved !== answer.body) setEditedBody(saved);
+    });
+  }, []);
+
   useEffect(() => {
     if (success) {
+      // Clear draft on successful publish
+      AsyncStorage.removeItem(draftKey(answer.id));
       Animated.parallel([
         Animated.spring(successScale, { toValue: 1, useNativeDriver: true, damping: 12, stiffness: 150 }),
         Animated.timing(successOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
@@ -58,12 +78,38 @@ export function UstadzReviewDetailScreen({ answer, queuePosition, onDone, onBack
     }
   }
 
-  function handleDraft() {
-    Alert.alert('Simpan Draft', 'Fitur ini akan segera tersedia.');
+  async function handleDraft() {
+    await AsyncStorage.setItem(draftKey(answer.id), editedBody);
+    setDraftSaved(true);
+    setTimeout(() => setDraftSaved(false), 2000);
   }
 
   function handleFlag() {
-    Alert.alert('Tandai Bermasalah', 'Fitur ini akan segera tersedia.');
+    Alert.alert(
+      'Tandai Bermasalah',
+      'Jawaban ini akan dihapus dari antrian dan tidak ditampilkan ke pengguna.',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Tandai',
+          style: 'destructive',
+          onPress: () => doFlag(),
+        },
+      ],
+    );
+  }
+
+  async function doFlag() {
+    setLoading(true);
+    try {
+      await flagAnswer(answer.id);
+      await AsyncStorage.removeItem(draftKey(answer.id));
+      onBack();
+    } catch (e: any) {
+      Alert.alert('Gagal menandai', e.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   // ── SUCCESS STATE ──────────────────────────────
@@ -71,13 +117,12 @@ export function UstadzReviewDetailScreen({ answer, queuePosition, onDone, onBack
     const remaining = queuePosition ? queuePosition.total - queuePosition.index - 1 : null;
 
     return (
-      <View style={s.flex}>
+      <SafeAreaView style={s.flex}>
+        <StatusBar style="dark" />
         <View style={s.topBar}>
-          <TouchableOpacity onPress={onBack} style={s.backBtn} hitSlop={8}>
-            <Text style={s.backChevron}>‹</Text>
-          </TouchableOpacity>
+          <IconButton name="arrow-back-outline" onPress={onBack} />
           <Text style={s.topBarTitle}>Tinjau Jawaban</Text>
-          <View style={s.topBarRight} />
+          <View style={{ width: 40 }} />
         </View>
 
         <Animated.View style={[s.successWrap, { opacity: successOpacity }]}>
@@ -114,37 +159,32 @@ export function UstadzReviewDetailScreen({ answer, queuePosition, onDone, onBack
           )}
 
           <View style={s.successActions}>
-            <Pressable
-              style={({ pressed }) => [s.primaryBtn, pressed && s.primaryBtnPressed]}
-              onPress={onDone}
-            >
-              <Text style={s.primaryBtnText}>Lanjut ke Antrian →</Text>
-            </Pressable>
+            <PrimaryButton label="Lanjut ke Antrian →" onPress={onDone} style={{ width: '100%' }} />
             <TouchableOpacity onPress={onBack} hitSlop={8} style={s.ghostBtn}>
               <Text style={s.ghostBtnText}>Kembali ke Dashboard</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   // ── REVIEW / EDIT STATE ───────────────────────
   return (
+    <SafeAreaView style={s.flex}>
+    <StatusBar style="dark" />
     <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
       {/* Top Bar */}
       <View style={s.topBar}>
-        <TouchableOpacity onPress={onBack} style={s.backBtn} hitSlop={8}>
-          <Text style={s.backChevron}>‹</Text>
-        </TouchableOpacity>
+        <IconButton name="arrow-back-outline" onPress={onBack} />
         <View style={s.topBarCenter}>
           <Text style={s.topBarTitle}>Tinjau Jawaban</Text>
           {queuePosition && (
             <Text style={s.topBarSub}>{queuePosition.index + 1} dari {queuePosition.total} dalam antrian</Text>
           )}
         </View>
-        <View style={[s.statusPill, s.topBarRight]}>
+        <View style={s.statusPill}>
           <Text style={s.statusPillText}>Menunggu</Text>
         </View>
       </View>
@@ -260,25 +300,26 @@ export function UstadzReviewDetailScreen({ answer, queuePosition, onDone, onBack
           <ActivityIndicator color={colors.emerald} style={{ marginVertical: 16 }} />
         ) : (
           <>
-            <Pressable
-              style={({ pressed }) => [s.primaryBtn, pressed && s.primaryBtnPressed]}
-              onPress={handleVerify}
-            >
-              <Text style={s.primaryBtnText}>Verifikasi &amp; Publikasikan</Text>
-            </Pressable>
+            <PrimaryButton label="Verifikasi & Publikasikan" onPress={handleVerify} />
             <View style={s.ctaSecondaryRow}>
-              <TouchableOpacity style={s.secondaryBtn} onPress={handleDraft}>
-                <Text style={s.secondaryBtnText}>Simpan Draft</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.secondaryBtn, s.flagBtn]} onPress={handleFlag}>
-                <Text style={s.flagBtnText}>⚑ Bermasalah</Text>
-              </TouchableOpacity>
+              <SecondaryButton
+                label={draftSaved ? '✓ Tersimpan' : 'Simpan Draft'}
+                onPress={handleDraft}
+                style={[{ flex: 1 }, draftSaved && s.draftSavedBtn]}
+              />
+              <SecondaryButton
+                label="⚑ Bermasalah"
+                onPress={handleFlag}
+                variant="danger"
+                style={{ flex: 1 }}
+              />
             </View>
           </>
         )}
       </View>
 
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -290,7 +331,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 52,
+    paddingTop: 8,
     paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
@@ -395,7 +436,7 @@ const s = StyleSheet.create({
     fontSize: 15,
     lineHeight: 24,
     color: colors.ink,
-    minHeight: 180,
+    minHeight: 280,
   },
 
   // Citations
@@ -463,6 +504,8 @@ const s = StyleSheet.create({
   secondaryBtnText: { fontSize: 13, fontWeight: '600', color: colors.muted },
   flagBtn: { borderColor: '#fecaca', backgroundColor: '#fff7f7' },
   flagBtnText: { fontSize: 13, fontWeight: '600', color: '#ef4444' },
+  draftSavedBtn: { borderColor: colors.emerald, backgroundColor: colors.emeraldSoft },
+  draftSavedText: { color: colors.emerald },
 
   // Success state
   successWrap: {

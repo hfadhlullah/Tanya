@@ -60,6 +60,15 @@ export class UstadzController {
     return this.ustadzService.uploadCredential(user.id, file, label);
   }
 
+  @Patch('answers/:answerId/flag')
+  @UseGuards(JwtAuthGuard)
+  flagAnswer(
+    @CurrentUser() user: CurrentUserType,
+    @Param('answerId') answerId: string,
+  ) {
+    return this.ustadzService.flagAnswer(user.id, answerId);
+  }
+
   @Patch('answers/:answerId/verify')
   @UseGuards(JwtAuthGuard)
   verifyAnswer(
