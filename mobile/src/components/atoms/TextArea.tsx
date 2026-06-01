@@ -5,8 +5,8 @@ export function TextArea(props: TextInputProps) {
   return (
     <TextInput
       multiline
-      placeholderTextColor={colors.ink600}
-      style={styles.input}
+      placeholderTextColor={colors.muted}
+      style={[styles.input, props.style]}
       textAlignVertical="top"
       {...props}
     />
@@ -15,14 +15,15 @@ export function TextArea(props: TextInputProps) {
 
 const styles = StyleSheet.create({
   input: {
-    backgroundColor: colors.sand50,
-    borderColor: colors.emerald100,
-    borderRadius: 24,
-    borderWidth: 1,
-    color: colors.ink900,
-    fontSize: 17,
-    lineHeight: 24,
-    minHeight: 132,
-    padding: 18,
+    backgroundColor: colors.white,
+    borderColor: colors.line,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    color: colors.ink,
+    fontSize: 15,
+    lineHeight: 22,
+    minHeight: 100,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
 });

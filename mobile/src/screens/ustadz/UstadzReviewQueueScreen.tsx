@@ -5,13 +5,13 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getReviewQueue, type ReviewAnswer } from '../../api/ustadz';
 import { BrandText } from '../../components/atoms/BrandText';
+import { IconButton } from '../../components/atoms/IconButton';
 import { colors } from '../../theme/ui-reference';
 
 interface Props {
@@ -59,14 +59,11 @@ export function UstadzReviewQueueScreen({ onSelect, onBack }: Props) {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <BrandText variant="caption" style={styles.backText}>
-            ← Kembali
-          </BrandText>
-        </TouchableOpacity>
+        <IconButton name="arrow-back-outline" onPress={onBack} />
         <BrandText variant="body" style={styles.title}>
           Antrian Review
         </BrandText>
+        <View style={{ width: 40 }} />
       </View>
 
       {error ? (

@@ -30,10 +30,12 @@ export function SecondaryButton({ label, style, variant = 'default', ...props }:
 const styles = StyleSheet.create({
   btn: {
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 11,
     borderWidth: 1.5,
+    minHeight: 46,
   },
   default: { borderColor: colors.line, backgroundColor: colors.paper },
   defaultPressed: { backgroundColor: colors.bg },
