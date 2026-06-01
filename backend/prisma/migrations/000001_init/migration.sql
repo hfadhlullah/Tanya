@@ -152,9 +152,13 @@ CREATE TABLE "BackgroundJob" (
     "status" "JobStatus" NOT NULL DEFAULT 'PENDING',
     "corpusChunkId" TEXT,
     "attempts" INTEGER NOT NULL DEFAULT 0,
+    "maxAttempts" INTEGER NOT NULL DEFAULT 3,
     "payload" JSONB,
     "error" TEXT,
     "runAfter" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lockedAt" TIMESTAMP(3),
+    "leaseExpiresAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "BackgroundJob_pkey" PRIMARY KEY ("id")
@@ -177,6 +181,7 @@ CREATE INDEX "AuditLog_entity_entityId_idx" ON "AuditLog"("entity", "entityId");
 CREATE INDEX "AnalyticsEvent_name_createdAt_idx" ON "AnalyticsEvent"("name", "createdAt");
 CREATE INDEX "AnalyticsEvent_userId_idx" ON "AnalyticsEvent"("userId");
 CREATE INDEX "BackgroundJob_status_runAfter_createdAt_idx" ON "BackgroundJob"("status", "runAfter", "createdAt");
+CREATE INDEX "BackgroundJob_status_leaseExpiresAt_idx" ON "BackgroundJob"("status", "leaseExpiresAt");
 CREATE INDEX "BackgroundJob_type_status_idx" ON "BackgroundJob"("type", "status");
 CREATE INDEX "BackgroundJob_corpusChunkId_idx" ON "BackgroundJob"("corpusChunkId");
 CREATE INDEX "Answer_embedding_idx" ON "Answer" USING ivfflat ("embedding" vector_cosine_ops) WITH (lists = 100);

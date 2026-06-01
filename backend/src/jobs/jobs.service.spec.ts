@@ -9,8 +9,11 @@ describe('JobsService', () => {
     backgroundJob: {
       create: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
+    $transaction: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -21,6 +24,7 @@ describe('JobsService', () => {
     }).compile();
 
     service = module.get(JobsService);
+    prisma.$transaction.mockImplementation((callback) => callback(prisma));
   });
 
   it('enqueues corpus embedding jobs', async () => {
@@ -38,24 +42,64 @@ describe('JobsService', () => {
 
   it('claims the oldest pending runnable job', async () => {
     prisma.backgroundJob.findFirst.mockResolvedValue({ id: 'job-1' });
+    prisma.backgroundJob.updateMany.mockResolvedValue({ count: 1 });
+    prisma.backgroundJob.findUnique.mockResolvedValue({ id: 'job-1', status: JobStatus.PROCESSING });
 
-    await service.claimNextJob();
+    await expect(service.claimNextJob()).resolves.toEqual({
+      id: 'job-1',
+      status: JobStatus.PROCESSING,
+    });
 
     expect(prisma.backgroundJob.findFirst).toHaveBeenCalledWith({
       where: {
-        status: JobStatus.PENDING,
-        runAfter: { lte: expect.any(Date) },
+        attempts: { lt: 3 },
+        OR: [
+          { status: JobStatus.PENDING, runAfter: { lte: expect.any(Date) } },
+          { status: JobStatus.PROCESSING, leaseExpiresAt: { lt: expect.any(Date) } },
+        ],
       },
       orderBy: [{ runAfter: 'asc' }, { createdAt: 'asc' }],
     });
-    expect(prisma.backgroundJob.update).toHaveBeenCalledWith({
-      where: { id: 'job-1' },
+    expect(prisma.backgroundJob.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'job-1',
+        attempts: { lt: 3 },
+        OR: [
+          { status: JobStatus.PENDING },
+          { status: JobStatus.PROCESSING, leaseExpiresAt: { lt: expect.any(Date) } },
+        ],
+      },
       data: {
         status: JobStatus.PROCESSING,
         attempts: { increment: 1 },
         error: null,
+        lockedAt: expect.any(Date),
+        leaseExpiresAt: expect.any(Date),
       },
     });
+  });
+
+  it('can reclaim stale processing jobs', async () => {
+    prisma.backgroundJob.findFirst.mockResolvedValue({
+      id: 'job-2',
+      status: JobStatus.PROCESSING,
+      leaseExpiresAt: new Date(Date.now() - 1000),
+    });
+    prisma.backgroundJob.updateMany.mockResolvedValue({ count: 1 });
+    prisma.backgroundJob.findUnique.mockResolvedValue({ id: 'job-2', status: JobStatus.PROCESSING });
+
+    await expect(service.claimNextJob()).resolves.toEqual({
+      id: 'job-2',
+      status: JobStatus.PROCESSING,
+    });
+  });
+
+  it('returns null when another worker already claimed the job', async () => {
+    prisma.backgroundJob.findFirst.mockResolvedValue({ id: 'job-1' });
+    prisma.backgroundJob.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(service.claimNextJob()).resolves.toBeNull();
+    expect(prisma.backgroundJob.findUnique).not.toHaveBeenCalled();
   });
 
   it('returns null when no job is available', async () => {

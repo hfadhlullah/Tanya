@@ -1,26 +1,26 @@
-FROM node:22-alpine AS deps
+FROM oven/bun:1.3.14-alpine AS deps
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
-FROM node:22-alpine AS build
+FROM oven/bun:1.3.14-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate
-RUN npm run build
+RUN bunx prisma generate
+RUN bun run build
 
-FROM node:22-alpine AS runtime
+FROM oven/bun:1.3.14-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-COPY package*.json ./
-RUN npm ci --omit=dev
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && chown -R node:node /app /entrypoint.sh
-USER node
+RUN chmod +x /entrypoint.sh && chown -R bun:bun /app /entrypoint.sh
+USER bun
 EXPOSE 3000
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["node", "dist/main.js"]
+CMD ["bun", "dist/main.js"]

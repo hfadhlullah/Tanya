@@ -30,14 +30,14 @@ export class WorkerService {
     }
 
     try {
-      if (job.type === JobType.CORPUS_EMBEDDING) {
-        // Placeholder: real embedding generation and pgvector writes land with RAG integration.
-        await this.jobsService.completeJob(job.id);
-        return true;
+      switch (job.type) {
+        case JobType.CORPUS_EMBEDDING:
+          // Placeholder: real embedding generation and pgvector writes land with RAG integration.
+          await this.jobsService.completeJob(job.id);
+          return true;
+        default:
+          throw new Error(`Unsupported job type: ${job.type}`);
       }
-
-      await this.jobsService.completeJob(job.id);
-      return true;
     } catch (error) {
       await this.jobsService.failJob(
         job.id,

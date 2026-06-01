@@ -27,7 +27,7 @@
 
 ## 5. Corpus And Jobs
 - [x] 5.1 Implement corpus ingestion for approved Qur'an, hadith, and founding ustadz content.
-- [x] 5.2 Add background jobs for chunking, embedding, retrieval indexing, and analytics aggregation.
+- [x] 5.2 Add the background job foundation and placeholder corpus embedding processing; real chunking, retrieval indexing, and analytics aggregation handlers remain follow-up work.
 - [ ] 5.3 Add file storage handling for credentials, photos, source files, and corpus uploads.
 
 ## 6. Validation

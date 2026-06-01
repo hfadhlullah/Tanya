@@ -33,4 +33,17 @@ describe('WorkerService', () => {
 
     await expect(worker.processNextJob()).resolves.toBe(false);
   });
+
+  it('fails unsupported job types instead of completing them', async () => {
+    jobs.claimNextJob.mockResolvedValue({
+      id: 'job-2',
+      type: JobType.ANALYTICS_AGGREGATION,
+    } as Awaited<ReturnType<JobsService['claimNextJob']>>);
+
+    const worker = new WorkerService(jobs);
+
+    await expect(worker.processNextJob()).resolves.toBe(true);
+    expect(jobs.completeJob).not.toHaveBeenCalled();
+    expect(jobs.failJob).toHaveBeenCalledWith('job-2', 'Unsupported job type: ANALYTICS_AGGREGATION');
+  });
 });

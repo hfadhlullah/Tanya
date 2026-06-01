@@ -21,6 +21,7 @@ Use `@/prompter/AGENTS.md` to learn:
 - Active approved proposal: `prompter/changes/add-tanya-mvp-foundation/`.
 - Backend: NestJS in `backend/`.
 - Mobile: Expo React Native in `mobile/`.
+- Package manager/runtime: prefer Bun (`bun install`, `bun run ...`, `bunx ...`) for app workspaces.
 - Database: PostgreSQL with pgvector via `pgvector/pgvector:pg16`.
 - Deployment target: Coolify on VPS with separate staging and production environments.
 - UI/UX reference: `docs/onboard-ux/` is the locked product-wide reference; preserve the emerald visual direction across MVP screens.
