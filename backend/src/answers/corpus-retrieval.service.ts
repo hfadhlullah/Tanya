@@ -29,7 +29,10 @@ export class CorpusRetrievalService {
     tx: CorpusTx = this.prisma,
   ) {
     if (embedding && embedding.length > 0) {
-      return this.findByEmbedding(embedding);
+      const vectorMatches = await this.findByEmbedding(embedding);
+      if (vectorMatches.length > 0) {
+        return vectorMatches;
+      }
     }
     return this.findByKeyword(questionText, tx);
   }

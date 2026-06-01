@@ -25,6 +25,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('loading');
   const [sessionKey, setSessionKey] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<ReviewAnswer | null>(null);
+  const [queuePosition, setQueuePosition] = useState<{ index: number; total: number } | undefined>();
 
   useEffect(() => {
     bootstrap();
@@ -79,8 +80,9 @@ export default function App() {
   if (screen === 'ustadz_queue') {
     return (
       <UstadzReviewQueueScreen
-        onSelect={(answer) => {
+        onSelect={(answer, index, total) => {
           setSelectedAnswer(answer);
+          setQueuePosition({ index, total });
           setScreen('ustadz_review_detail');
         }}
         onBack={() => setScreen('ustadz_dashboard')}
@@ -92,6 +94,7 @@ export default function App() {
     return (
       <UstadzReviewDetailScreen
         answer={selectedAnswer}
+        queuePosition={queuePosition}
         onDone={() => setScreen('ustadz_queue')}
         onBack={() => setScreen('ustadz_queue')}
       />

@@ -9,6 +9,9 @@ import { QuestionsService } from './questions.service';
 describe('QuestionsService', () => {
   let service: QuestionsService;
   const prisma = {
+    user: {
+      findUnique: jest.fn(),
+    },
     question: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -30,6 +33,7 @@ describe('QuestionsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    prisma.user.findUnique.mockResolvedValue({ preferredUstadzIds: [] });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -78,7 +82,7 @@ describe('QuestionsService', () => {
         status: 'RECEIVED',
       },
     });
-    expect(answerBank.findVerifiedMatch).toHaveBeenCalledWith('Bagaimana cara salat?');
+    expect(answerBank.findVerifiedMatch).toHaveBeenCalledWith('Bagaimana cara salat?', []);
     expect(sourcedAnswer.createTierOneAnswer).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'question-1' }),
       prisma,

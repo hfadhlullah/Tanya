@@ -455,7 +455,9 @@ function AnswerBlock({
       ? 'Pertanyaan sensitif · tidak dapat dijawab'
       : isVerified
         ? null
-        : 'Jawaban AI · belum ditinjau ustadz');
+        : answer.citations?.length > 0
+          ? "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz"
+          : 'Jawaban AI · belum ditinjau ustadz');
 
   function handleCopy() {
     Share.share({ message: answer.body });

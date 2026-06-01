@@ -11,7 +11,7 @@ import { BrandText } from '../../components/atoms/BrandText';
 import { colors } from '../../theme/ui-reference';
 
 interface Props {
-  onSelect: (answer: ReviewAnswer) => void;
+  onSelect: (answer: ReviewAnswer, index: number, total: number) => void;
   onBack: () => void;
 }
 
@@ -69,8 +69,8 @@ export function UstadzReviewQueueScreen({ onSelect, onBack }: Props) {
           data={answers}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.card} onPress={() => onSelect(item)}>
+          renderItem={({ item, index }) => (
+            <TouchableOpacity style={styles.card} onPress={() => onSelect(item, index, answers.length)}>
               <View style={styles.cardTop}>
                 {item.question.isSensitive && (
                   <View style={styles.sensitiveBadge}>
