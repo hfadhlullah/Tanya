@@ -23,4 +23,4 @@ RUN mkdir -p /app/uploads && chmod +x /entrypoint.sh && chown -R bun:bun /app /e
 USER bun
 EXPOSE 3000
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["bun", "dist/main.js"]
+CMD ["bun", "dist/src/main.js"]
