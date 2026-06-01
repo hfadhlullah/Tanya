@@ -48,6 +48,7 @@ export class QuestionsService {
           topic: classification.topic,
           isSensitive: classification.isSensitive,
           preferredUstadzId: dto.preferredUstadzId?.trim(),
+          sessionId: dto.sessionId?.trim() ?? null,
           status: questionStatus,
         },
       });

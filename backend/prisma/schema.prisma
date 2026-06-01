@@ -66,7 +66,9 @@ enum JobStatus {
 model User {
   id             String          @id @default(cuid())
   email          String          @unique
+  passwordHash   String?
   displayName    String?
+  isGuest        Boolean         @default(false)
   role           UserRole        @default(USER)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -110,6 +112,7 @@ model Question {
   userId        String
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   text          String
+  sessionId     String?
   language      String         @default("id")
   topic         String?
   isSensitive   Boolean        @default(false)

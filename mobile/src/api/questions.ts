@@ -1,8 +1,11 @@
+import { authHeaders, getStoredToken } from './auth';
+
 const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 export type Question = {
   id: string;
   text: string;
+  sessionId: string | null;
   language: string;
   topic?: string | null;
   isSensitive: boolean;
@@ -16,18 +19,17 @@ export type CreateQuestionResponse = {
   answer: null;
 };
 
-function demoAuthHeaders(userId: string) {
-  return {
-    'Content-Type': 'application/json',
-    'x-demo-user-id': userId,
-  };
+async function headers() {
+  const token = await getStoredToken();
+  if (!token) throw new Error('Sesi habis. Silakan login ulang.');
+  return authHeaders(token);
 }
 
-export async function createQuestion(input: { userId: string; text: string }) {
+export async function createQuestion(input: { text: string; sessionId: string }) {
   const response = await fetch(`${apiUrl}/questions`, {
     method: 'POST',
-    headers: demoAuthHeaders(input.userId),
-    body: JSON.stringify({ language: 'id', text: input.text }),
+    headers: await headers(),
+    body: JSON.stringify({ language: 'id', text: input.text, sessionId: input.sessionId }),
   });
 
   if (!response.ok) {
@@ -37,9 +39,9 @@ export async function createQuestion(input: { userId: string; text: string }) {
   return (await response.json()) as CreateQuestionResponse;
 }
 
-export async function listQuestions(userId: string) {
+export async function listQuestions() {
   const response = await fetch(`${apiUrl}/questions/me`, {
-    headers: demoAuthHeaders(userId),
+    headers: await headers(),
   });
 
   if (!response.ok) {

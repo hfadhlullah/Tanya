@@ -15,4 +15,9 @@ export class CreateQuestionDto {
   @IsString()
   @MaxLength(128)
   preferredUstadzId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  sessionId?: string;
 }

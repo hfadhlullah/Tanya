@@ -1,10 +1,10 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser, type CurrentUser as CurrentUserType } from '../auth/current-user.decorator';
-import { DemoAuthGuard } from '../auth/demo-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { QuestionsService } from './questions.service';
 
-@UseGuards(DemoAuthGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('questions')
 export class QuestionsController {
   constructor(private readonly questionsService: QuestionsService) {}
