@@ -5,8 +5,9 @@ Islamic Q&A platform. NestJS backend + Postgres (pgvector) + React Native/Expo m
 ## Prerequisites
 
 - Docker + Docker Compose
-- Node.js 20+ and npm
-- (Optional) Bun for seeding
+- Node.js 20+
+- Bun 1.1+
+- npm is still supported as a fallback where needed
 
 ---
 
@@ -32,6 +33,13 @@ docker inspect tanya-postgres-1 --format '{{range .NetworkSettings.Networks}}{{.
 
 ```bash
 cd backend
+bun install
+```
+
+If you prefer npm:
+
+```bash
+cd backend
 npm install
 ```
 
@@ -53,10 +61,28 @@ CORS_ORIGIN=http://localhost:5174
 First time only — run migrations:
 
 ```bash
+bun run db:migrate
+```
+
+If you prefer npm:
+
+```bash
 npx prisma migrate deploy
 ```
 
-Start backend:
+Generate Prisma client if needed:
+
+```bash
+bun run db:generate
+```
+
+Start backend API:
+
+```bash
+bun run start:dev
+```
+
+If you prefer npm:
 
 ```bash
 npm run start:dev
@@ -64,9 +90,35 @@ npm run start:dev
 
 API runs at `http://localhost:3000`.
 
+Start worker in a second terminal:
+
+```bash
+bun run build
+bun run start:worker
+```
+
+If you prefer npm:
+
+```bash
+npm run build
+npm run start:worker
+```
+
+The worker is required for:
+- corpus embedding jobs
+- pgvector readiness for RAG retrieval
+- background processing after corpus import
+
 ---
 
 ## 3. Mobile (Expo)
+
+```bash
+cd mobile
+bun install
+```
+
+If you prefer npm:
 
 ```bash
 cd mobile
@@ -79,14 +131,26 @@ Create `mobile/.env`:
 EXPO_PUBLIC_API_URL=http://localhost:3000
 ```
 
-Start Expo:
+Start Expo for web:
 
 ```bash
-npx expo start --web
+bun run web
+```
+
+If you prefer npm:
+
+```bash
+npm run web
 ```
 
 - Browser: `http://localhost:8081`
 - Other devices on same WiFi: use your machine's LAN IP instead of `localhost`
+
+You can also start the generic Expo dev server with:
+
+```bash
+bun run start
+```
 
 ### Ustadz flow
 
@@ -95,6 +159,13 @@ A user with role `USTADZ` in the DB gets routed to ustadz screens automatically 
 ---
 
 ## 4. Admin Panel
+
+```bash
+cd admin
+bun install
+```
+
+If you prefer npm:
 
 ```bash
 cd admin
@@ -108,6 +179,12 @@ VITE_API_URL=http://localhost:3000
 ```
 
 Start admin panel:
+
+```bash
+bun run dev
+```
+
+If you prefer npm:
 
 ```bash
 npm run dev
@@ -129,6 +206,8 @@ Login with the `DEMO_ADMIN_KEY` value you set in `backend/.env`.
 ## 5. Seed Corpus (optional)
 
 Answers require corpus chunks in the database.
+
+For full RAG behavior, keep the worker running so imported chunks receive embeddings.
 
 ```bash
 # Create a source
@@ -155,8 +234,57 @@ curl -X POST http://localhost:3000/corpus/chunks \
   }'
 ```
 
+Bulk import for Qur'an or hadith is also available from the admin panel or via API:
+
+```bash
+curl -X POST http://localhost:3000/corpus/import \
+  -H "x-demo-admin-key: your-admin-key" \
+  -F "type=QURAN" \
+  -F "title=Quran" \
+  -F "license=approved" \
+  -F "language=id" \
+  -F "files=@/absolute/path/to/1.json" \
+  -F "files=@/absolute/path/to/2.json"
+```
+
+Supported import formats:
+- single JSON file containing an array of records
+- single CSV file
+- multiple JSON or CSV files in one import
+- per-surah Qur'an JSON files like `quran-json/surah/1.json ... 114.json`
+
+Required fields:
+- Qur'an: `surah`, `ayah`, `text`
+- Hadith: `collection`, `number`, `text`
+
 ---
 
 ## 6. LLM Integration
 
 Set `REQUESTY_API_KEY` in `backend/.env` to enable AI answer generation. Without it, the worker falls back to corpus-only retrieval.
+
+## 7. Local Dev Summary
+
+Run these in separate terminals:
+
+```bash
+# terminal 1
+docker compose up -d postgres
+
+# terminal 2
+cd backend && bun run start:dev
+
+# terminal 3
+cd backend && bun run build && bun run start:worker
+
+# terminal 4
+cd admin && bun run dev
+
+# terminal 5
+cd mobile && bun run web
+```
+
+Local URLs:
+- Backend API: `http://localhost:3000`
+- Admin: `http://localhost:5174`
+- Mobile web: `http://localhost:8081`
