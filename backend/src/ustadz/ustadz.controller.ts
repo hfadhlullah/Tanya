@@ -13,37 +13,37 @@ export class UstadzController {
   constructor(private readonly ustadzService: UstadzService) {}
 
   @Post('onboarding')
-  @UseGuards(DemoAuthGuard)
+  @UseGuards(JwtAuthGuard)
   onboard(@CurrentUser() user: CurrentUserType, @Body() dto: OnboardUstadzDto) {
     return this.ustadzService.onboard(user.id, dto);
   }
 
   @Get('me/profile')
-  @UseGuards(DemoAuthGuard)
+  @UseGuards(JwtAuthGuard)
   getProfile(@CurrentUser() user: CurrentUserType) {
     return this.ustadzService.getProfile(user.id);
   }
 
   @Patch('me/profile')
-  @UseGuards(DemoAuthGuard)
+  @UseGuards(JwtAuthGuard)
   updateProfile(@CurrentUser() user: CurrentUserType, @Body() dto: OnboardUstadzDto) {
     return this.ustadzService.updateProfile(user.id, dto);
   }
 
   @Get('me/dashboard')
-  @UseGuards(DemoAuthGuard)
+  @UseGuards(JwtAuthGuard)
   getDashboard(@CurrentUser() user: CurrentUserType) {
     return this.ustadzService.getDashboard(user.id);
   }
 
   @Get('me/review-queue')
-  @UseGuards(DemoAuthGuard)
+  @UseGuards(JwtAuthGuard)
   getReviewQueue(@CurrentUser() user: CurrentUserType) {
     return this.ustadzService.getReviewQueue(user.id);
   }
 
   @Post('me/credentials/upload')
-  @UseGuards(DemoAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
   uploadCredential(
     @CurrentUser() user: CurrentUserType,
@@ -55,7 +55,7 @@ export class UstadzController {
   }
 
   @Patch('answers/:answerId/verify')
-  @UseGuards(DemoAuthGuard)
+  @UseGuards(JwtAuthGuard)
   verifyAnswer(
     @CurrentUser() user: CurrentUserType,
     @Param('answerId') answerId: string,
