@@ -1,9 +1,18 @@
-import { useRef, useState } from 'react';
-import { FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  FlatList,
+  SafeAreaView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { type AuthUser } from '../../api/auth';
-import { type Question } from '../../api/questions';
+import { type Answer, type Question } from '../../api/questions';
 import { type ChatSession } from '../../screens/AskScreen';
 import { colors } from '../../theme/ui-reference';
 import { BottomInputBar } from '../organisms/BottomInputBar';
@@ -28,6 +37,9 @@ type AskTemplateProps = {
   onSessionSelect: (sessionId: string) => void;
   onLogout: () => void;
   onLoginPress: () => void;
+  onEditQuestion: (question: Question) => void;
+  onDeleteSession: (sessionId: string) => void;
+  newAnswerIds: Set<string>;
 };
 
 export function AskTemplate({
@@ -47,21 +59,30 @@ export function AskTemplate({
   onSessionSelect,
   onLogout,
   onLoginPress,
+  onEditQuestion,
+  onDeleteSession,
+  newAnswerIds,
 }: AskTemplateProps) {
   const listRef = useRef<FlatList>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
-  function scrollToBottom() {
+  const scrollToBottom = useCallback(() => {
     if (questions.length > 0) {
       listRef.current?.scrollToEnd({ animated: true });
     }
+  }, [questions.length]);
+
+  function handleScroll(event: any) {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+    setShowScrollBtn(distanceFromBottom > 120);
   }
 
   return (
     <SafeAreaView style={s.root}>
       <StatusBar style="dark" />
 
-      {/* Sidebar */}
       <SidebarDrawer
         visible={sidebarOpen}
         sessions={sessions}
@@ -72,6 +93,7 @@ export function AskTemplate({
         onSessionSelect={(sid) => { setSidebarOpen(false); onSessionSelect(sid); }}
         onLogout={onLogout}
         onLoginPress={onLoginPress}
+        onDeleteSession={onDeleteSession}
       />
 
       {/* Top bar */}
@@ -82,9 +104,10 @@ export function AskTemplate({
         <Text style={s.logo}>
           Tanya<Text style={s.logoAccent}>.</Text>
         </Text>
+        <View style={s.iconBtn} />
       </View>
 
-      {/* Content area */}
+      {/* Content */}
       {questions.length === 0 ? (
         <View style={s.emptyArea}>
           <View style={s.emptyHero}>
@@ -92,29 +115,44 @@ export function AskTemplate({
               Mau tanya soal{'\n'}Islam?{' '}
               <Text style={s.emptyTitleAccent}>Sini.</Text>
             </Text>
-            <Text style={s.emptySubtitle}>
-              Jawaban dari Quran & Sunnah, ditinjau ustadz.
-            </Text>
+            <Text style={s.emptySubtitle}>Jawaban dari Quran & Sunnah, ditinjau ustadz.</Text>
           </View>
           <SuggestionChips onSelect={onSuggestionSelect} />
         </View>
       ) : (
-        <FlatList
-          ref={listRef}
-          data={questions}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={s.listContent}
-          onContentSizeChange={scrollToBottom}
-          renderItem={({ item }) => <QuestionBubble question={item} />}
-          ListHeaderComponent={
-            <View style={s.listHeader}>
-              <Text style={s.listHeaderText}>Riwayat pertanyaan</Text>
-            </View>
-          }
-        />
+        <View style={s.listWrap}>
+          <FlatList
+            ref={listRef}
+            data={questions}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={s.listContent}
+            onContentSizeChange={scrollToBottom}
+            onScroll={handleScroll}
+            scrollEventThrottle={100}
+            renderItem={({ item, index }) => (
+              <QuestionTurn
+                question={item}
+                showDivider={index < questions.length - 1}
+                onEdit={onEditQuestion}
+                newAnswerIds={newAnswerIds}
+              />
+            )}
+            ListHeaderComponent={
+              <View style={s.listHeader}>
+                <Text style={s.listHeaderText}>Riwayat pertanyaan</Text>
+              </View>
+            }
+          />
+
+          {/* Floating scroll-to-bottom button */}
+          {showScrollBtn && (
+            <TouchableOpacity style={s.scrollBtn} onPress={scrollToBottom} activeOpacity={0.8}>
+              <Ionicons name="arrow-down" size={18} color={colors.white} />
+            </TouchableOpacity>
+          )}
+        </View>
       )}
 
-      {/* Bottom input */}
       <BottomInputBar
         loading={loading}
         prefill={prefill}
@@ -122,7 +160,6 @@ export function AskTemplate({
         onPrefillConsumed={onPrefillConsumed}
       />
 
-      {/* Login gate modal */}
       <LoginGateModal
         visible={showLoginGate}
         onSuccess={onLoginSuccess}
@@ -132,47 +169,202 @@ export function AskTemplate({
   );
 }
 
-function QuestionBubble({ question }: { question: Question }) {
+// ─── Question + Answer turn ───────────────────────────────────────────────────
+
+function QuestionTurn({
+  question,
+  showDivider,
+  onEdit,
+  newAnswerIds,
+}: {
+  question: Question;
+  showDivider: boolean;
+  onEdit: (q: Question) => void;
+  newAnswerIds: Set<string>;
+}) {
   const answer = question.answers?.[0];
+
   return (
-    <View style={s.turn}>
-      {/* User question — right aligned */}
-      <View style={s.bubbleRow}>
-        <View style={s.bubble}>
-          <Text style={s.bubbleText}>{question.text}</Text>
-          <View style={s.bubbleMeta}>
-            <Text style={[s.statusDot, question.isSensitive ? s.dotSensitive : s.dotSafe]}>●</Text>
-            <Text style={s.statusText}>
-              {question.isSensitive ? 'Menunggu tinjauan ustadz' : 'Masuk alur jawaban'}
-            </Text>
+    <View>
+      <View style={s.turn}>
+        {/* Question bubble — right aligned */}
+        <View style={s.bubbleRow}>
+          <View style={s.bubble}>
+            <Text style={s.bubbleText}>{question.text}</Text>
+            <View style={s.bubbleFooter}>
+              <TouchableOpacity
+                style={s.editBtn}
+                onPress={() => onEdit(question)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="pencil-outline" size={11} color={colors.muted} />
+                <Text style={s.editBtnText}>Edit</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
+
+        {/* Answer area */}
+        {answer ? (
+          <AnswerBlock answer={answer} animate={newAnswerIds.has(answer.id)} />
+        ) : (
+          <ProcessingIndicator isSensitive={question.isSensitive} />
+        )}
       </View>
 
-      {/* Answer — left aligned */}
-      {answer ? (
-        <View style={s.answerRow}>
-          <View style={s.answerBubble}>
-            <Text style={s.answerText}>{answer.body}</Text>
-            {answer.citations?.length > 0 && (
-              <View style={s.citationsWrap}>
-                {answer.citations.map((c) => (
-                  <Text key={c.id} style={s.citationText}>· {c.label}</Text>
-                ))}
-              </View>
-            )}
-          </View>
-        </View>
-      ) : null}
+      {showDivider && <View style={s.divider} />}
     </View>
   );
 }
 
+// ─── Processing indicator ─────────────────────────────────────────────────────
+
+function ProcessingIndicator({ isSensitive }: { isSensitive: boolean }) {
+  const dot1 = useRef(new Animated.Value(0.25)).current;
+  const dot2 = useRef(new Animated.Value(0.25)).current;
+  const dot3 = useRef(new Animated.Value(0.25)).current;
+
+  useEffect(() => {
+    function pulse(dot: Animated.Value, delay: number) {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0.25, duration: 400, useNativeDriver: true }),
+          Animated.delay(600),
+        ]),
+      );
+    }
+    const a1 = pulse(dot1, 0);
+    const a2 = pulse(dot2, 180);
+    const a3 = pulse(dot3, 360);
+    a1.start(); a2.start(); a3.start();
+    return () => { a1.stop(); a2.stop(); a3.stop(); };
+  }, [dot1, dot2, dot3]);
+
+  const label = isSensitive
+    ? 'Menunggu tinjauan ustadz…'
+    : 'Mencari dari Al-Qur\'an & Sunnah…';
+
+  return (
+    <View style={s.processingRow}>
+      <View style={s.dots}>
+        <Animated.View style={[s.dot, { opacity: dot1 }]} />
+        <Animated.View style={[s.dot, { opacity: dot2 }]} />
+        <Animated.View style={[s.dot, { opacity: dot3 }]} />
+      </View>
+      <Text style={s.processingText}>{label}</Text>
+    </View>
+  );
+}
+
+// ─── Answer block ─────────────────────────────────────────────────────────────
+
+const TYPEWRITER_SPEED = 12; // ms per character
+
+function AnswerBlock({ answer, animate }: { answer: Answer; animate: boolean }) {
+  const [displayed, setDisplayed] = useState(animate ? '' : answer.body);
+  const [done, setDone] = useState(!animate);
+  const [liked, setLiked] = useState<'up' | 'down' | null>(null);
+
+  useEffect(() => {
+    if (!animate || !answer.body) return;
+    setDisplayed('');
+    setDone(false);
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setDisplayed(answer.body.slice(0, i));
+      if (i >= answer.body.length) {
+        clearInterval(id);
+        setDone(true);
+      }
+    }, TYPEWRITER_SPEED);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answer.id]);
+
+  const isVerified = answer.status === 'VERIFIED';
+  const ustadzName = answer.verifyingUstadz?.publicName;
+  const sourceLabel = answer.label ?? (isVerified ? null : 'Jawaban AI · belum ditinjau ustadz');
+
+  function handleCopy() {
+    Share.share({ message: answer.body });
+  }
+
+  return (
+    <View style={s.answerBlock}>
+      {/* Source label — sits between question and answer prose */}
+      <View style={s.sourceRow}>
+        <View style={[s.sourceBar, isVerified ? s.sourceBarUstadz : s.sourceBarCorpus]} />
+        {isVerified && ustadzName ? (
+          <Text style={s.sourceText}>
+            Dari Ustadz{' '}
+            <Text style={s.sourceUstadzName}>{ustadzName}</Text>
+            {'  '}
+            <Text style={s.verifiedPill}>✓ Terverifikasi</Text>
+          </Text>
+        ) : (
+          <Text style={s.sourceText}>{sourceLabel}</Text>
+        )}
+      </View>
+
+      {/* Answer prose */}
+      <Text style={s.answerText}>
+        {displayed}
+        {!done && <Text style={s.cursor}>|</Text>}
+      </Text>
+
+      {/* Citation pills */}
+      {done && answer.citations?.length > 0 && (
+        <View style={s.citationsRow}>
+          {answer.citations.map((c) => (
+            <View key={c.id} style={s.citationPill}>
+              <Text style={s.citationPillText}>{c.label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Actions row — copy / thumbs up / thumbs down */}
+      {done && (
+        <View style={s.actionsRow}>
+          <TouchableOpacity style={s.actionCopy} onPress={handleCopy} activeOpacity={0.7}>
+            <Ionicons name="copy-outline" size={13} color={colors.muted} />
+            <Text style={s.actionCopyText}>Salin</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.actionIcon, liked === 'up' && s.actionIconActive]}
+            onPress={() => setLiked((v) => (v === 'up' ? null : 'up'))}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={liked === 'up' ? 'thumbs-up' : 'thumbs-up-outline'}
+              size={15}
+              color={liked === 'up' ? colors.emerald : colors.muted}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.actionIcon, liked === 'down' && s.actionIconActive]}
+            onPress={() => setLiked((v) => (v === 'down' ? null : 'down'))}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={liked === 'down' ? 'thumbs-down' : 'thumbs-down-outline'}
+              size={15}
+              color={liked === 'down' ? colors.ink : colors.muted}
+            />
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const s = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
+  root: { flex: 1, backgroundColor: colors.bg },
 
   // top bar
   topBar: {
@@ -183,135 +375,120 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: colors.bg,
   },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logo: {
-    fontFamily: 'serif',
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.ink,
-    letterSpacing: -0.5,
-  },
-  logoAccent: {
-    color: colors.emerald,
-  },
+  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  logo: { fontFamily: 'serif', fontSize: 20, fontWeight: '600', color: colors.ink, letterSpacing: -0.5 },
+  logoAccent: { color: colors.emerald },
+
   // empty state
-  emptyArea: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: 12,
-  },
-  emptyHero: {
-    paddingHorizontal: 24,
-    marginBottom: 8,
-  },
+  emptyArea: { flex: 1, justifyContent: 'flex-end', paddingBottom: 12 },
+  emptyHero: { paddingHorizontal: 24, marginBottom: 8 },
   emptyTitle: {
-    fontFamily: 'serif',
-    fontSize: 28,
-    lineHeight: 36,
-    fontWeight: '500',
-    color: colors.ink,
-    letterSpacing: -0.4,
-    marginBottom: 8,
+    fontFamily: 'serif', fontSize: 28, lineHeight: 36,
+    fontWeight: '500', color: colors.ink, letterSpacing: -0.4, marginBottom: 8,
   },
-  emptyTitleAccent: {
-    color: colors.emeraldDark,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: colors.muted,
-    lineHeight: 20,
-  },
+  emptyTitleAccent: { color: colors.emeraldDark },
+  emptySubtitle: { fontSize: 14, color: colors.muted, lineHeight: 20 },
 
   // list
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 10,
-  },
-  listHeader: {
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
+  listWrap: { flex: 1, position: 'relative' },
+  listContent: { paddingHorizontal: 16, paddingBottom: 20, gap: 0 },
+  listHeader: { paddingTop: 16, paddingBottom: 12 },
   listHeaderText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: 11, fontWeight: '700', color: colors.muted,
+    textTransform: 'uppercase', letterSpacing: 0.6,
   },
 
-  // bubbles
-  turn: {
-    gap: 6,
+  // scroll button
+  scrollBtn: {
+    position: 'absolute', bottom: 12, right: 12,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: colors.ink,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: colors.ink, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
   },
-  bubbleRow: {
-    alignItems: 'flex-end',
-  },
-  answerRow: {
-    alignItems: 'flex-start',
-  },
-  answerBubble: {
-    backgroundColor: colors.emerald + '18',
-    borderRadius: 20,
-    borderBottomLeftRadius: 4,
-    padding: 14,
-    maxWidth: '85%',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.emerald + '40',
-  },
-  answerText: {
-    fontSize: 15,
-    color: colors.ink,
-    lineHeight: 22,
-  },
-  citationsWrap: {
-    gap: 2,
-    marginTop: 4,
-  },
-  citationText: {
-    fontSize: 11,
-    color: colors.muted,
-    lineHeight: 16,
-  },
+
+  // turn + divider
+  turn: { paddingVertical: 16, gap: 12 },
+  divider: { height: 1, backgroundColor: colors.line, marginVertical: 4 },
+
+  // question bubble
+  bubbleRow: { alignItems: 'flex-end' },
   bubble: {
     backgroundColor: colors.white,
     borderRadius: 20,
     borderBottomRightRadius: 4,
-    padding: 14,
-    maxWidth: '85%',
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
+    maxWidth: '82%',
     borderWidth: 1,
     borderColor: colors.line,
+    gap: 8,
   },
-  bubbleText: {
+  bubbleText: { fontSize: 15, color: colors.ink, lineHeight: 22, fontWeight: '500' },
+  bubbleFooter: { flexDirection: 'row', justifyContent: 'flex-end' },
+  editBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 8, borderWidth: 1, borderColor: colors.line,
+  },
+  editBtnText: { fontSize: 11, color: colors.muted },
+
+  // processing
+  processingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 2 },
+  dots: { flexDirection: 'row', gap: 4 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.emerald },
+  processingText: { fontSize: 13, color: colors.muted, fontStyle: 'italic' },
+
+  // answer block
+  answerBlock: { gap: 12, paddingLeft: 2 },
+
+  // source label
+  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sourceBar: { width: 2, height: 16, borderRadius: 1 },
+  sourceBarCorpus: { backgroundColor: colors.emerald },
+  sourceBarUstadz: { backgroundColor: colors.muted },
+  sourceText: { fontSize: 12, color: colors.muted, fontWeight: '500', flex: 1 },
+  sourceUstadzName: { color: colors.ink, fontWeight: '700' },
+  verifiedPill: { color: colors.emeraldDark, fontWeight: '700' },
+
+  // answer prose
+  answerText: {
+    fontFamily: 'Georgia, serif',
     fontSize: 15,
+    lineHeight: 26,
     color: colors.ink,
-    lineHeight: 22,
-    fontWeight: '500',
   },
-  bubbleMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+  cursor: { color: colors.ink, fontWeight: '300' },
+
+  // citations
+  citationsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  citationPill: {
+    backgroundColor: colors.emeraldSoft,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  statusDot: {
-    fontSize: 8,
+  citationPillText: { fontSize: 11, color: colors.emeraldDark, fontWeight: '500' },
+
+  // actions
+  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actionCopy: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 12, borderWidth: 1, borderColor: colors.line,
+    backgroundColor: colors.white,
   },
-  dotSafe: {
-    color: colors.emerald,
+  actionCopyText: { fontSize: 12, color: colors.muted },
+  actionIcon: {
+    width: 34, height: 34, borderRadius: 10,
+    borderWidth: 1, borderColor: colors.line,
+    backgroundColor: colors.white,
+    alignItems: 'center', justifyContent: 'center',
   },
-  dotSensitive: {
-    color: colors.muted,
-  },
-  statusText: {
-    fontSize: 12,
-    color: colors.muted,
-    fontWeight: '500',
+  actionIconActive: {
+    borderColor: colors.emerald,
+    backgroundColor: colors.emeraldSoft,
   },
 });

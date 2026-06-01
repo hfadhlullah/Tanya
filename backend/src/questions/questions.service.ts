@@ -39,7 +39,8 @@ export class QuestionsService {
         ? QuestionStatus.ANSWERED_VERIFIED
         : QuestionStatus.RECEIVED;
 
-    const { answer, question } = await this.prisma.$transaction(async (tx) => {
+    // Create question (and verified answer if available) in a short tx
+    const { verifiedAnswer, question } = await this.prisma.$transaction(async (tx) => {
       const createdQuestion = await tx.question.create({
         data: {
           userId,
@@ -63,8 +64,7 @@ export class QuestionsService {
             metadata: { isSensitive: true, topic: classification.topic },
           },
         });
-
-        return { answer: null, question: createdQuestion };
+        return { verifiedAnswer: null, question: createdQuestion };
       }
 
       if (verifiedMatch) {
@@ -91,17 +91,20 @@ export class QuestionsService {
             },
           },
         });
-
         return {
-          answer: { ...reusedAnswer, verified: true, reusedFromAnswerId: verifiedMatch.answerId },
+          verifiedAnswer: { ...reusedAnswer, verified: true, reusedFromAnswerId: verifiedMatch.answerId },
           question: createdQuestion,
         };
       }
 
-      const sourcedAnswer = await this.sourcedAnswerService.createTierOneAnswer(createdQuestion, tx);
-
-      return { answer: sourcedAnswer, question: createdQuestion };
+      return { verifiedAnswer: null, question: createdQuestion };
     });
+
+    // LLM answer generation happens outside the transaction (no timeout risk)
+    let answer = verifiedAnswer;
+    if (!classification.isSensitive && !verifiedMatch) {
+      answer = await this.sourcedAnswerService.createTierOneAnswer(question, this.prisma);
+    }
 
     return {
       question,
@@ -114,9 +117,16 @@ export class QuestionsService {
     };
   }
 
+  deleteSession(userId: string, sessionId: string) {
+    return this.prisma.question.updateMany({
+      where: { userId: userId.trim(), sessionId: sessionId.trim(), deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+  }
+
   listForUser(userId: string) {
     return this.prisma.question.findMany({
-      where: { userId: userId.trim() },
+      where: { userId: userId.trim(), deletedAt: null },
       orderBy: { createdAt: 'desc' },
       include: {
         answers: {

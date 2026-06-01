@@ -121,9 +121,11 @@ model Question {
   status        QuestionStatus @default(RECEIVED)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
   answers       Answer[]
 
   @@index([userId, createdAt])
+  @@index([userId, deletedAt])
   @@index([isSensitive, status])
   @@index([preferredUstadzId])
 }

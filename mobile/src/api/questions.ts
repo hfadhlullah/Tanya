@@ -13,7 +13,9 @@ export type Answer = {
   body: string;
   status: string;
   language: string;
+  label?: string | null;
   citations: Citation[];
+  verifyingUstadz?: { publicName: string } | null;
 };
 
 export type Question = {
@@ -52,6 +54,17 @@ export async function createQuestion(input: { text: string; sessionId: string })
   }
 
   return (await response.json()) as CreateQuestionResponse;
+}
+
+export async function deleteSession(sessionId: string) {
+  const response = await fetch(`${apiUrl}/questions/session/${encodeURIComponent(sessionId)}`, {
+    method: 'DELETE',
+    headers: await headers(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Sesi gagal dihapus.');
+  }
 }
 
 export async function listQuestions() {

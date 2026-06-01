@@ -15,6 +15,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RENAME_KEY = '@tanya_session_titles';
+import { deleteSession as apiDeleteSession } from '../../api/questions';
 import { type AuthUser } from '../../api/auth';
 import { type ChatSession } from '../../screens/AskScreen';
 
@@ -27,6 +28,7 @@ const d = {
   text: '#e8f5ef',
   muted: '#6b9980',
   accent: '#0e9f6e',
+  danger: '#ef4444',
   newChatBg: '#122d1f',
 };
 
@@ -40,14 +42,20 @@ interface Props {
   onSessionSelect: (sessionId: string) => void;
   onLogout: () => void;
   onLoginPress: () => void;
+  onDeleteSession: (sessionId: string) => void;
 }
 
-export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClose, onNewChat, onSessionSelect, onLogout, onLoginPress }: Props) {
+export function SidebarDrawer({
+  visible, sessions, currentSessionId, user,
+  onClose, onNewChat, onSessionSelect, onLogout, onLoginPress, onDeleteSession,
+}: Props) {
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const [profileOpen, setProfileOpen] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [titles, setTitles] = useState<Record<string, string>>({});
+  const [popoverId, setPopoverId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(RENAME_KEY).then((raw) => {
@@ -61,6 +69,7 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
   }
 
   function startRename(sessionId: string, currentTitle: string) {
+    setPopoverId(null);
     setRenamingId(sessionId);
     setRenameValue(titles[sessionId] ?? currentTitle);
   }
@@ -71,6 +80,20 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
       await saveTitles({ ...titles, [sessionId]: trimmed });
     }
     setRenamingId(null);
+  }
+
+  function handleDelete(sessionId: string) {
+    setConfirmDeleteId(sessionId);
+  }
+
+  async function confirmDelete(sessionId: string) {
+    setPopoverId(null);
+    setConfirmDeleteId(null);
+    const next = { ...titles };
+    delete next[sessionId];
+    await saveTitles(next);
+    onDeleteSession(sessionId);
+    apiDeleteSession(sessionId).catch(() => {});
   }
 
   function getTitle(session: { sessionId: string; title: string }) {
@@ -84,6 +107,11 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
       damping: 20,
       stiffness: 180,
     }).start();
+    if (!visible) {
+      setPopoverId(null);
+      setRenamingId(null);
+      setConfirmDeleteId(null);
+    }
   }, [visible]);
 
   function getInitials(u: AuthUser) {
@@ -103,10 +131,15 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      {/* Backdrop */}
-      <Pressable style={s.backdrop} onPress={onClose} />
+      {/* Backdrop — also closes popover */}
+      <Pressable
+        style={s.backdrop}
+        onPress={() => {
+          if (popoverId) { setPopoverId(null); return; }
+          onClose();
+        }}
+      />
 
-      {/* Drawer */}
       <Animated.View style={[s.drawer, { transform: [{ translateX: slideAnim }] }]}>
         {/* Header */}
         <View style={s.header}>
@@ -126,7 +159,7 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
           </TouchableOpacity>
         </View>
 
-        {/* Recents */}
+        {/* Session list */}
         <ScrollView style={s.recents} showsVerticalScrollIndicator={false}>
           {sessions.length > 0 ? (
             <>
@@ -134,49 +167,107 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
               {sessions.map((session) => {
                 const isActive = session.sessionId === currentSessionId;
                 const isRenaming = renamingId === session.sessionId;
+                const isPopoverOpen = popoverId === session.sessionId;
+
                 return (
-                  <View key={session.sessionId} style={[s.recentItem, isActive && s.recentItemActive]}>
-                    {isRenaming ? (
-                      <TextInput
-                        style={s.renameInput}
-                        value={renameValue}
-                        onChangeText={setRenameValue}
-                        onSubmitEditing={() => commitRename(session.sessionId)}
-                        onBlur={() => commitRename(session.sessionId)}
-                        autoFocus
-                        returnKeyType="done"
-                        selectTextOnFocus
-                      />
-                    ) : (
-                      <TouchableOpacity
-                        style={s.recentTextBtn}
-                        onPress={() => onSessionSelect(session.sessionId)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[s.recentText, isActive && s.recentTextActive]} numberOfLines={1}>
-                          {getTitle(session)}
-                        </Text>
-                      </TouchableOpacity>
+                  <View key={session.sessionId}>
+                    <View style={[s.recentItem, isActive && s.recentItemActive]}>
+                      {isRenaming ? (
+                        <TextInput
+                          style={s.renameInput}
+                          value={renameValue}
+                          onChangeText={setRenameValue}
+                          onSubmitEditing={() => commitRename(session.sessionId)}
+                          onBlur={() => commitRename(session.sessionId)}
+                          autoFocus
+                          returnKeyType="done"
+                          selectTextOnFocus
+                        />
+                      ) : (
+                        <TouchableOpacity
+                          style={s.recentTextBtn}
+                          onPress={() => { setPopoverId(null); onSessionSelect(session.sessionId); }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[s.recentText, isActive && s.recentTextActive]} numberOfLines={1}>
+                            {getTitle(session)}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {isRenaming ? (
+                        <TouchableOpacity
+                          style={s.moreBtn}
+                          activeOpacity={0.7}
+                          hitSlop={8}
+                          onPress={() => commitRename(session.sessionId)}
+                        >
+                          <Ionicons name="checkmark" size={18} color={d.accent} />
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          style={s.moreBtn}
+                          activeOpacity={0.7}
+                          hitSlop={8}
+                          onPress={() => setPopoverId((v) => v === session.sessionId ? null : session.sessionId)}
+                        >
+                          <Ionicons
+                            name="ellipsis-horizontal"
+                            size={16}
+                            color={isPopoverOpen ? d.accent : d.muted}
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Inline popover — drops below the row */}
+                    {isPopoverOpen && confirmDeleteId !== session.sessionId && (
+                      <View style={s.popoverMenu}>
+                        <TouchableOpacity
+                          style={s.popoverMenuItem}
+                          activeOpacity={0.7}
+                          onPress={() => startRename(session.sessionId, session.title)}
+                        >
+                          <Ionicons name="pencil-outline" size={15} color={d.muted} />
+                          <Text style={s.popoverMenuText}>Ganti nama</Text>
+                        </TouchableOpacity>
+                        <View style={s.popoverMenuDivider} />
+                        <TouchableOpacity
+                          style={s.popoverMenuItem}
+                          activeOpacity={0.7}
+                          onPress={() => handleDelete(session.sessionId)}
+                        >
+                          <Ionicons name="trash-outline" size={15} color={d.danger} />
+                          <Text style={[s.popoverMenuText, { color: d.danger }]}>Hapus sesi</Text>
+                        </TouchableOpacity>
+                      </View>
                     )}
-                    {!isRenaming && (
-                      <TouchableOpacity
-                        style={s.moreBtn}
-                        activeOpacity={0.7}
-                        hitSlop={8}
-                        onPress={() => startRename(session.sessionId, session.title)}
-                      >
-                        <Ionicons name="ellipsis-horizontal" size={16} color={d.muted} />
-                      </TouchableOpacity>
-                    )}
-                    {isRenaming && (
-                      <TouchableOpacity
-                        style={s.moreBtn}
-                        activeOpacity={0.7}
-                        hitSlop={8}
-                        onPress={() => commitRename(session.sessionId)}
-                      >
-                        <Ionicons name="checkmark" size={18} color={d.accent} />
-                      </TouchableOpacity>
+
+                    {/* Inline delete confirmation */}
+                    {confirmDeleteId === session.sessionId && (
+                      <View style={s.popoverMenu}>
+                        <View style={s.confirmHeader}>
+                          <Ionicons name="warning-outline" size={15} color={d.danger} />
+                          <Text style={s.confirmTitle}>Hapus sesi ini?</Text>
+                        </View>
+                        <Text style={s.confirmBody}>Semua pertanyaan akan dihapus.</Text>
+                        <View style={s.confirmActions}>
+                          <TouchableOpacity
+                            style={s.confirmBatal}
+                            activeOpacity={0.7}
+                            onPress={() => { setConfirmDeleteId(null); setPopoverId(null); }}
+                          >
+                            <Text style={s.confirmBatalText}>Batal</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={s.confirmHapus}
+                            activeOpacity={0.7}
+                            onPress={() => confirmDelete(session.sessionId)}
+                          >
+                            <Text style={s.confirmHapusText}>Hapus</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
                     )}
                   </View>
                 );
@@ -251,9 +342,7 @@ const s = StyleSheet.create({
   },
   drawer: {
     position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
+    top: 0, bottom: 0, left: 0,
     width: DRAWER_WIDTH,
     backgroundColor: d.bg,
     paddingTop: 16,
@@ -263,219 +352,122 @@ const s = StyleSheet.create({
 
   // header
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, marginBottom: 12,
   },
-  logo: {
-    fontFamily: 'serif',
-    fontSize: 22,
-    fontWeight: '600',
-    color: d.text,
-    letterSpacing: -0.5,
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  logo: { fontFamily: 'serif', fontSize: 22, fontWeight: '600', color: d.text, letterSpacing: -0.5 },
+  closeBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
 
   // new chat
-  section: {
-    paddingHorizontal: 12,
-    marginBottom: 8,
-  },
+  section: { paddingHorizontal: 12, marginBottom: 8 },
   newChatBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: d.newChatBg,
-    borderRadius: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: d.newChatBg, borderRadius: 12,
+    paddingVertical: 13, paddingHorizontal: 16,
   },
-  newChatText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: d.text,
-  },
+  newChatText: { fontSize: 15, fontWeight: '600', color: d.text },
 
   // recents
-  recents: {
-    flex: 1,
-    paddingHorizontal: 12,
-  },
+  recents: { flex: 1, paddingHorizontal: 12 },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: d.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    paddingHorizontal: 8,
-    marginTop: 12,
-    marginBottom: 6,
+    fontSize: 12, fontWeight: '700', color: d.muted,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+    paddingHorizontal: 8, marginTop: 12, marginBottom: 6,
   },
   recentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 11,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    gap: 8,
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 11, paddingHorizontal: 8,
+    borderRadius: 10, gap: 8,
   },
-  recentTextBtn: {
-    flex: 1,
-  },
+  recentItemActive: { backgroundColor: d.surface },
+  recentTextBtn: { flex: 1 },
   renameInput: {
-    flex: 1,
-    fontSize: 14.5,
-    color: d.text,
-    backgroundColor: d.surface,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: d.accent,
+    flex: 1, fontSize: 14.5, color: d.text,
+    backgroundColor: d.surface, borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderWidth: 1, borderColor: d.accent,
   },
-  recentItemActive: {
+  recentText: { flex: 1, fontSize: 14.5, color: d.text, lineHeight: 20 },
+  recentTextActive: { color: d.accent, fontWeight: '600' },
+  moreBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  emptyRecents: { fontSize: 13, color: d.muted, paddingHorizontal: 8, marginTop: 12 },
+
+  // inline session popover
+  popoverMenu: {
+    marginHorizontal: 8,
+    marginBottom: 4,
     backgroundColor: d.surface,
     borderRadius: 10,
-  },
-  recentText: {
-    flex: 1,
-    fontSize: 14.5,
-    color: d.text,
-    lineHeight: 20,
-  },
-  recentTextActive: {
-    color: d.accent,
-    fontWeight: '600',
-  },
-  moreBtn: {
-    width: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyRecents: {
-    fontSize: 13,
-    color: d.muted,
-    paddingHorizontal: 8,
-    marginTop: 12,
-  },
-
-  // profile
-  profile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: d.border,
-  },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#0e9f6e',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  avatarText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: d.text,
-  },
-  profileSub: {
-    fontSize: 12,
-    color: d.muted,
-    marginTop: 1,
-  },
-  loginRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    borderTopWidth: 1,
-    borderTopColor: d.border,
-    backgroundColor: d.surface,
-  },
-  loginText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: d.accent,
-  },
-
-  // profile popover
-  popover: {
-    marginHorizontal: 12,
-    marginBottom: 6,
-    backgroundColor: d.surface,
-    borderRadius: 14,
     borderWidth: 1,
     borderColor: d.border,
     overflow: 'hidden',
   },
-  popoverUser: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 14,
+  popoverMenuItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 12, paddingHorizontal: 14,
   },
+  popoverMenuText: { fontSize: 14, color: d.text, fontWeight: '500' },
+  popoverMenuDivider: { height: 1, backgroundColor: d.border, marginHorizontal: 14 },
+
+  // inline confirmation
+  confirmHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 14, paddingBottom: 4 },
+  confirmTitle: { fontSize: 14, fontWeight: '700', color: d.danger },
+  confirmBody: { fontSize: 12, color: d.muted, paddingHorizontal: 14, paddingBottom: 12 },
+  confirmActions: { flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingBottom: 14 },
+  confirmBatal: {
+    flex: 1, paddingVertical: 9, borderRadius: 8,
+    borderWidth: 1, borderColor: d.border,
+    alignItems: 'center',
+  },
+  confirmBatalText: { fontSize: 13, color: d.muted, fontWeight: '600' },
+  confirmHapus: {
+    flex: 1, paddingVertical: 9, borderRadius: 8,
+    backgroundColor: d.danger, alignItems: 'center',
+  },
+  confirmHapusText: { fontSize: 13, color: '#fff', fontWeight: '700' },
+
+  // profile
+  profile: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 16,
+    borderTopWidth: 1, borderTopColor: d.border,
+  },
+  avatar: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: '#0e9f6e',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  avatarText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  profileInfo: { flex: 1 },
+  profileName: { fontSize: 14, fontWeight: '600', color: d.text },
+  profileSub: { fontSize: 12, color: d.muted, marginTop: 1 },
+  loginRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 20, paddingVertical: 18,
+    borderTopWidth: 1, borderTopColor: d.border,
+    backgroundColor: d.surface,
+  },
+  loginText: { fontSize: 15, fontWeight: '600', color: d.accent },
+
+  // profile popover
+  popover: {
+    marginHorizontal: 12, marginBottom: 6,
+    backgroundColor: d.surface, borderRadius: 14,
+    borderWidth: 1, borderColor: d.border, overflow: 'hidden',
+  },
+  popoverUser: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
   avatarSm: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: d.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: d.accent, alignItems: 'center', justifyContent: 'center',
   },
-  avatarTextSm: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  popoverUserInfo: {
-    flex: 1,
-  },
-  popoverName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: d.text,
-  },
-  popoverSub: {
-    fontSize: 11,
-    color: d.muted,
-    marginTop: 1,
-  },
-  popoverDivider: {
-    height: 1,
-    backgroundColor: d.border,
-    marginHorizontal: 14,
-  },
+  avatarTextSm: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  popoverUserInfo: { flex: 1 },
+  popoverName: { fontSize: 13, fontWeight: '600', color: d.text },
+  popoverSub: { fontSize: 11, color: d.muted, marginTop: 1 },
+  popoverDivider: { height: 1, backgroundColor: d.border, marginHorizontal: 14 },
   popoverItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 13, paddingHorizontal: 14,
   },
-  popoverItemText: {
-    fontSize: 14,
-    color: d.text,
-    fontWeight: '500',
-  },
+  popoverItemText: { fontSize: 14, color: d.text, fontWeight: '500' },
 });

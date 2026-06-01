@@ -20,6 +20,7 @@ interface Props {
 export function AskScreen({ onResetAuth }: Props) {
   const [loading, setLoading] = useState(false);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [newAnswerIds, setNewAnswerIds] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<AuthUser | null>(null);
   const [showLoginGate, setShowLoginGate] = useState(false);
   const [prefill, setPrefill] = useState<string>();
@@ -44,18 +45,40 @@ export function AskScreen({ onResetAuth }: Props) {
 
   async function handleSubmit(text: string) {
     setLoading(true);
+
+    // Show question immediately with empty answers (triggers ProcessingIndicator)
+    const optimisticId = `optimistic-${Date.now()}`;
+    const optimisticQuestion: Question = {
+      id: optimisticId,
+      text,
+      sessionId: currentSessionId,
+      language: 'id',
+      isSensitive: false,
+      status: 'RECEIVED',
+      createdAt: new Date().toISOString(),
+      answers: [],
+    };
+    setAllQuestions((prev) => [optimisticQuestion, ...prev]);
+
     try {
       const result = await createQuestion({ text, sessionId: currentSessionId });
       const newQuestion: Question = {
         ...result.question,
         answers: result.answer ? [result.answer] : [],
       };
-      setAllQuestions((prev) => [newQuestion, ...prev]);
+      if (result.answer) {
+        setNewAnswerIds((prev) => new Set(prev).add(result.answer!.id));
+      }
+      // Replace optimistic entry with real question
+      setAllQuestions((prev) =>
+        prev.map((q) => (q.id === optimisticId ? newQuestion : q)),
+      );
       if (isGuest.current) {
         setShowLoginGate(true);
       }
     } catch {
-      // input bar handles its own state
+      // Remove optimistic entry on error
+      setAllQuestions((prev) => prev.filter((q) => q.id !== optimisticId));
     } finally {
       setLoading(false);
     }
@@ -77,13 +100,28 @@ export function AskScreen({ onResetAuth }: Props) {
     setCurrentSessionId(sessionId);
   }
 
+  function handleEditQuestion(question: Question) {
+    setAllQuestions((prev) => prev.filter((q) => q.id !== question.id));
+    setPrefill(question.text);
+  }
+
+  function handleDeleteSession(sessionId: string) {
+    setAllQuestions((prev) => prev.filter((q) => q.sessionId !== sessionId));
+    if (sessionId === currentSessionId) {
+      setCurrentSessionId(makeSessionId());
+    }
+  }
+
   async function handleLogout() {
     await logout();
     onResetAuth?.();
   }
 
-  // questions for current session
-  const currentQuestions = allQuestions.filter((q) => q.sessionId === currentSessionId);
+  // questions for current session — oldest first (chat order)
+  const currentQuestions = allQuestions
+    .filter((q) => q.sessionId === currentSessionId)
+    .slice()
+    .reverse();
 
   // build sessions list for sidebar (one entry per unique sessionId, most recent first)
   const sessions: ChatSession[] = Object.values(
@@ -119,6 +157,9 @@ export function AskScreen({ onResetAuth }: Props) {
       onSessionSelect={handleSessionSelect}
       onLogout={handleLogout}
       onLoginPress={() => setShowLoginGate(true)}
+      onEditQuestion={handleEditQuestion}
+      onDeleteSession={handleDeleteSession}
+      newAnswerIds={newAnswerIds}
     />
   );
 }
