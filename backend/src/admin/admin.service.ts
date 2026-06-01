@@ -29,16 +29,34 @@ export class AdminService {
         data: {
           userId: user.id,
           publicName: dto.publicName.trim(),
-          bio: dto.bio?.trim(),
-          credentials: dto.credentials?.trim(),
-          publicProfile: dto.publicProfile?.trim(),
-          specialties: dto.specialties?.map((s) => s.trim()).filter(Boolean) ?? [],
-          madhhab: dto.madhhab?.trim(),
-          status: UstadzStatus.APPROVED,
+          status: UstadzStatus.PENDING,
         },
       });
 
       return { user: { id: user.id, email: user.email, role: user.role }, profile };
+    });
+  }
+
+  async approveUstadzWithProfile(profileId: string, dto: { publicName?: string; bio?: string; credentials?: string; publicProfile?: string; specialties?: string[]; madhhab?: string }) {
+    return this.prisma.ustadzProfile.update({
+      where: { id: profileId },
+      data: {
+        ...(dto.publicName && { publicName: dto.publicName.trim() }),
+        bio: dto.bio?.trim() ?? undefined,
+        credentials: dto.credentials?.trim() ?? undefined,
+        publicProfile: dto.publicProfile?.trim() ?? undefined,
+        specialties: dto.specialties?.map((s) => s.trim()).filter(Boolean),
+        madhhab: dto.madhhab?.trim() ?? undefined,
+        status: UstadzStatus.APPROVED,
+      },
+      include: { user: true },
+    });
+  }
+
+  deactivateUstadz(profileId: string) {
+    return this.prisma.ustadzProfile.update({
+      where: { id: profileId },
+      data: { status: UstadzStatus.REJECTED },
     });
   }
 

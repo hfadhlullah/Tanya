@@ -1,20 +1,29 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { CorpusRetrievalService } from './corpus-retrieval.service';
+import { LlmClientService } from './llm-client.service';
 
 describe('CorpusRetrievalService', () => {
   let service: CorpusRetrievalService;
   const prisma = {
+    $queryRaw: jest.fn(),
     corpusChunk: {
       findMany: jest.fn(),
     },
+  };
+  const llm = {
+    embed: jest.fn(),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CorpusRetrievalService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        CorpusRetrievalService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: LlmClientService, useValue: llm },
+      ],
     }).compile();
 
     service = module.get(CorpusRetrievalService);
@@ -30,7 +39,7 @@ describe('CorpusRetrievalService', () => {
           { topic: { contains: 'salat', mode: 'insensitive' } },
         ]),
       },
-      take: 3,
+      take: 5,
       orderBy: { createdAt: 'desc' },
       include: { source: true },
     });

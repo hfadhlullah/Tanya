@@ -3,6 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser, type CurrentUser as CurrentUserType } from '../auth/current-user.decorator';
 import { DemoAdminGuard } from '../auth/demo-admin.guard';
 import { DemoAuthGuard } from '../auth/demo-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OnboardUstadzDto } from './dto/onboard-ustadz.dto';
 import { VerifyAnswerDto } from './dto/verify-answer.dto';
 import { UstadzService } from './ustadz.service';

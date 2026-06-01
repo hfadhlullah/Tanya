@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import { api, type SensitiveRule } from '../api';
 
-const EMPTY_FORM = { topic: '', pattern: '', scope: 'GLOBAL' as const, isActive: true };
+type RuleForm = {
+  topic: string;
+  pattern: string;
+  scope: 'GLOBAL' | 'USTADZ';
+  isActive: boolean;
+};
+
+const EMPTY_FORM: RuleForm = { topic: '', pattern: '', scope: 'GLOBAL', isActive: true };
 
 export function SensitiveRulesPage() {
   const [data, setData] = useState<SensitiveRule[]>([]);

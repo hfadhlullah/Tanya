@@ -26,3 +26,5 @@ Use `@/prompter/AGENTS.md` to learn:
 - Deployment target: Coolify on VPS with separate staging and production environments.
 - UI/UX reference: `docs/onboard-ux/` is the locked product-wide reference; preserve the emerald visual direction across MVP screens.
 - Mobile components use atomic design: `atoms`, `molecules`, `organisms`, `templates`, and `screens` under `mobile/src/`.
+- Corpus MVP import is available at `POST /corpus/import` for admin use with multipart `file` plus `type`, `title`, `license`, optional `reference`, and optional `language`.
+- Supported corpus import formats are structured JSON or CSV only. Qur'an records must include `surah`, `ayah`, and `text`; hadith records must include `collection`, `number`, and `text`.

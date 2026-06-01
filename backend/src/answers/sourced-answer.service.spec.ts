@@ -1,12 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnswerStatus, QuestionStatus, SourceType } from '@prisma/client';
 import { CorpusRetrievalService } from './corpus-retrieval.service';
+import { LlmClientService } from './llm-client.service';
 import { SourcedAnswerService } from './sourced-answer.service';
 
 describe('SourcedAnswerService', () => {
   let service: SourcedAnswerService;
   const corpusRetrieval = {
+    embedQuestion: jest.fn(),
     findSourceMatches: jest.fn(),
+  };
+  const llm = {
+    complete: jest.fn(),
   };
   const tx = {
     answer: {
@@ -27,6 +32,7 @@ describe('SourcedAnswerService', () => {
       providers: [
         SourcedAnswerService,
         { provide: CorpusRetrievalService, useValue: corpusRetrieval },
+        { provide: LlmClientService, useValue: llm },
       ],
     }).compile();
 
@@ -34,11 +40,13 @@ describe('SourcedAnswerService', () => {
   });
 
   it('creates AI pending answer with citations from source matches', async () => {
+    corpusRetrieval.embedQuestion.mockResolvedValue([0.1, 0.2]);
     corpusRetrieval.findSourceMatches.mockResolvedValue([
       {
         id: 'chunk-1',
         sourceId: 'source-1',
         content: 'Dirikanlah salat dan tunaikanlah zakat.',
+        metadata: { citationLabel: 'QS Al-Baqarah 2:43' },
         source: {
           id: 'source-1',
           type: SourceType.QURAN,
@@ -47,6 +55,7 @@ describe('SourcedAnswerService', () => {
         },
       },
     ]);
+    llm.complete.mockResolvedValue('Jawaban berdasarkan sumber relevan dan belum ditinjau ustadz.');
     tx.answer.create.mockResolvedValue({ id: 'answer-1', status: AnswerStatus.AI_PENDING });
 
     const result = await service.createTierOneAnswer(
@@ -64,7 +73,7 @@ describe('SourcedAnswerService', () => {
           create: [
             {
               sourceId: 'source-1',
-              label: 'QS 2:43',
+              label: 'QS Al-Baqarah 2:43',
               excerpt: 'Dirikanlah salat dan tunaikanlah zakat.',
             },
           ],
@@ -88,12 +97,14 @@ describe('SourcedAnswerService', () => {
     );
   });
 
-  it('returns null when no source match exists', async () => {
+  it('falls back to source title when imported metadata is missing', async () => {
+    corpusRetrieval.embedQuestion.mockResolvedValue(null);
     corpusRetrieval.findSourceMatches.mockResolvedValue([]);
+    llm.complete.mockResolvedValue('Jawaban AI umum.');
+    tx.answer.create.mockResolvedValue({ id: 'answer-2', status: AnswerStatus.AI_PENDING });
 
-    await expect(
-      service.createTierOneAnswer({ id: 'question-1', text: 'Apa?', language: 'id' }, tx),
-    ).resolves.toBeNull();
-    expect(tx.answer.create).not.toHaveBeenCalled();
+    await service.createTierOneAnswer({ id: 'question-1', text: 'Apa?', language: 'id' }, tx);
+
+    expect(tx.answer.create).toHaveBeenCalled();
   });
 });

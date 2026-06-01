@@ -9,6 +9,7 @@ describe('CorpusController', () => {
     listSources: jest.fn(),
     createChunk: jest.fn(),
     listChunks: jest.fn(),
+    importCorpus: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -34,5 +35,14 @@ describe('CorpusController', () => {
     await controller.listChunks('source-1');
 
     expect(corpusService.listChunks).toHaveBeenCalledWith('source-1');
+  });
+
+  it('delegates corpus import', async () => {
+    const dto = { type: 'QURAN' as const, title: 'Kemenag', license: 'approved' };
+    const files = { files: [{ originalname: 'quran.json' }] as Express.Multer.File[] };
+
+    await controller.importCorpus(dto, files);
+
+    expect(corpusService.importCorpus).toHaveBeenCalledWith(dto, files.files);
   });
 });

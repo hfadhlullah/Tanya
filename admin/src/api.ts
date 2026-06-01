@@ -5,11 +5,12 @@ function adminKey() {
 }
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = typeof FormData !== 'undefined' && init?.body instanceof FormData;
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
-      'Content-Type': 'application/json',
       'x-demo-admin-key': adminKey(),
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(init?.headers ?? {}),
     },
   });
@@ -23,6 +24,7 @@ export interface UstadzApplication {
   publicName: string;
   bio?: string | null;
   credentials?: string | null;
+  publicProfile?: string | null;
   specialties: string[];
   madhhab?: string | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -44,11 +46,34 @@ export interface SensitiveRule {
 
 export interface CorpusSource {
   id: string;
+  type: 'QURAN' | 'HADITH' | 'USTADZ_CONTENT';
   title: string;
-  author?: string | null;
+  reference?: string | null;
+  license?: string | null;
   language: string;
   createdAt: string;
   _count: { corpusChunks: number; citations: number };
+}
+
+export interface ImportCorpusPayload {
+  type: 'QURAN' | 'HADITH';
+  title: string;
+  reference?: string;
+  license: string;
+  language?: 'id';
+  files: File[];
+}
+
+export interface CorpusImportResult {
+  source: CorpusSource;
+  importSummary: {
+    type: 'QURAN' | 'HADITH';
+    fileName: string;
+    filesProcessed: string[];
+    recordsReceived: number;
+    chunksCreated: number;
+    embeddingJobsQueued: number;
+  };
 }
 
 export interface AuditLog {
@@ -65,6 +90,10 @@ export interface CreateUstadzPayload {
   email: string;
   password: string;
   publicName: string;
+}
+
+export interface ApproveUstadzPayload {
+  publicName?: string;
   bio?: string;
   credentials?: string;
   publicProfile?: string;
@@ -75,6 +104,10 @@ export interface CreateUstadzPayload {
 export const api = {
   createUstadz: (body: CreateUstadzPayload) =>
     req('/admin/ustadz', { method: 'POST', body: JSON.stringify(body) }),
+  approveUstadzWithProfile: (profileId: string, body: ApproveUstadzPayload) =>
+    req(`/admin/ustadz/${profileId}/approve`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deactivateUstadz: (profileId: string) =>
+    req(`/admin/ustadz/${profileId}/deactivate`, { method: 'PATCH' }),
   listUstadzApplications: () => req<UstadzApplication[]>('/admin/ustadz-applications'),
   approveUstadz: (id: string) => req(`/ustadz/${id}/approve`, { method: 'PATCH' }),
   rejectUstadz: (id: string) => req(`/ustadz/${id}/reject`, { method: 'PATCH' }),
@@ -86,5 +119,19 @@ export const api = {
     req(`/admin/sensitive-rules/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
 
   listCorpusSources: () => req<CorpusSource[]>('/admin/corpus-sources'),
+  importCorpus: (body: ImportCorpusPayload) => {
+    const form = new FormData();
+    form.append('type', body.type);
+    form.append('title', body.title);
+    form.append('license', body.license);
+    form.append('language', body.language ?? 'id');
+    if (body.reference) form.append('reference', body.reference);
+    if (body.files.length === 1) {
+      form.append('file', body.files[0]);
+    } else {
+      body.files.forEach((file) => form.append('files', file));
+    }
+    return req<CorpusImportResult>('/corpus/import', { method: 'POST', body: form });
+  },
   listAuditLogs: () => req<AuditLog[]>('/admin/audit-logs'),
 };

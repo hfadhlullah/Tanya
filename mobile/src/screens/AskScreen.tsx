@@ -102,9 +102,14 @@ export function AskScreen({ onResetAuth }: Props) {
     }
   }
 
-  function handleLoginSuccess() {
+  async function handleLoginSuccess() {
     setShowLoginGate(false);
     isGuest.current = false;
+    const user = await getStoredUser();
+    if (user?.role === 'USTADZ') {
+      onResetAuth?.();
+      return;
+    }
     checkGuestStatus();
     refreshQuestions().catch(() => {});
   }

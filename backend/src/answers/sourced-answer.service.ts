@@ -34,7 +34,7 @@ export class SourcedAnswerService {
         citations: matches.length > 0 ? {
           create: matches.map((match) => ({
             sourceId: match.sourceId,
-            label: match.source.reference ?? match.source.title,
+            label: this.getCitationLabel(match),
             excerpt: match.content.slice(0, 500),
           })),
         } : undefined,
@@ -58,6 +58,18 @@ export class SourcedAnswerService {
         : 'Jawaban AI · belum ditinjau ustadz',
       verified: false,
     };
+  }
+
+  private getCitationLabel(match: { source: { reference: string | null; title: string }; metadata?: unknown }) {
+    const metadata = match.metadata;
+    if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+      const citationLabel = (metadata as { citationLabel?: unknown }).citationLabel;
+      if (typeof citationLabel === 'string' && citationLabel.trim()) {
+        return citationLabel.trim();
+      }
+    }
+
+    return match.source.reference ?? match.source.title;
   }
 
   private async synthesizeAnswer(

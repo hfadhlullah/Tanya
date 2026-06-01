@@ -1,9 +1,10 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, UploadedFile, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { DemoAdminGuard } from '../auth/demo-admin.guard';
 import { CorpusService } from './corpus.service';
 import { CreateCorpusChunkDto } from './dto/create-corpus-chunk.dto';
 import { CreateSourceDto } from './dto/create-source.dto';
+import { ImportCorpusDto } from './dto/import-corpus.dto';
 
 @Controller('corpus')
 export class CorpusController {
@@ -40,5 +41,20 @@ export class CorpusController {
   ) {
     if (!file) throw new BadRequestException('file is required');
     return this.corpusService.uploadSourceFile(sourceId, file);
+  }
+
+  @Post('import')
+  @UseGuards(DemoAdminGuard)
+  @UseInterceptors(FileFieldsInterceptor([
+    { name: 'file', maxCount: 1 },
+    { name: 'files', maxCount: 200 },
+  ], { limits: { fileSize: 50 * 1024 * 1024 } }))
+  importCorpus(
+    @Body() dto: ImportCorpusDto,
+    @UploadedFiles() files: { file?: Express.Multer.File[]; files?: Express.Multer.File[] },
+  ) {
+    const uploadedFiles = [...(files?.file ?? []), ...(files?.files ?? [])];
+    if (uploadedFiles.length === 0) throw new BadRequestException('file or files is required');
+    return this.corpusService.importCorpus(dto, uploadedFiles);
   }
 }

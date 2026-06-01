@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { LlmClientService } from '../answers/llm-client.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SafetyService } from './safety.service';
 
@@ -9,12 +10,19 @@ describe('SafetyService', () => {
       findMany: jest.fn(),
     },
   };
+  const llm = {
+    complete: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SafetyService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        SafetyService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: LlmClientService, useValue: llm },
+      ],
     }).compile();
 
     service = module.get(SafetyService);
@@ -34,14 +42,15 @@ describe('SafetyService', () => {
   it('falls back to built-in safety patterns', async () => {
     prisma.sensitiveRule.findMany.mockResolvedValue([]);
 
-    await expect(service.classifyQuestion('Bagaimana pembagian waris?')).resolves.toEqual({
+    await expect(service.classifyQuestion('Apakah jihad bom dibolehkan?')).resolves.toEqual({
       isSensitive: true,
-      topic: 'waris',
+      topic: 'kekerasan',
     });
   });
 
   it('returns non-sensitive for safe text', async () => {
     prisma.sensitiveRule.findMany.mockResolvedValue([]);
+    llm.complete.mockResolvedValue('TIDAK');
 
     await expect(service.classifyQuestion('Bagaimana cara wudhu?')).resolves.toEqual({
       isSensitive: false,
