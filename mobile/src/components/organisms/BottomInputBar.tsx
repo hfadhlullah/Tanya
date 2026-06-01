@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -75,7 +76,11 @@ export function BottomInputBar({ loading, prefill, onSubmit, onPrefillConsumed, 
             disabled={!canSend}
             activeOpacity={0.85}
           >
-            <Text style={[s.sendIcon, canSend && s.sendIconActive]}>↑</Text>
+            <Ionicons
+              name="arrow-up-outline"
+              size={18}
+              color={canSend ? colors.white : colors.muted}
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -119,8 +124,6 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   sendBtnActive: { backgroundColor: colors.emerald },
-  sendIcon: { fontSize: 18, fontWeight: '700', color: colors.muted },
-  sendIconActive: { color: colors.white },
 
   // guest blocked state
   blockedBanner: {

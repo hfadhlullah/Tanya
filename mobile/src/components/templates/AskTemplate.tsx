@@ -220,6 +220,7 @@ function QuestionTurn({
             answer={answer}
             animate={newAnswerIds.has(answer.id)}
             isSensitiveQuestion={question.isSensitive}
+            questionCreatedAt={question.createdAt}
           />
         ) : (
           <ProcessingIndicator isSensitive={question.isSensitive} />
@@ -430,10 +431,12 @@ function AnswerBlock({
   answer,
   animate,
   isSensitiveQuestion,
+  questionCreatedAt,
 }: {
   answer: Answer;
   animate: boolean;
   isSensitiveQuestion: boolean;
+  questionCreatedAt?: string;
 }) {
   const [displayed, setDisplayed] = useState(animate ? '' : answer.body);
   const [done, setDone] = useState(!animate);
@@ -458,6 +461,14 @@ function AnswerBlock({
 
   const isVerified = answer.status === 'VERIFIED';
   const ustadzName = answer.verifyingUstadz?.publicName;
+  const thinkingSecs = (() => {
+    if (!questionCreatedAt || !answer.createdAt) return null;
+    const secs = Math.round(
+      (new Date(answer.createdAt).getTime() - new Date(questionCreatedAt).getTime()) / 1000,
+    );
+    return secs > 0 ? secs : null;
+  })();
+
   const sourceLabel = answer.label
     ?? (isSensitiveQuestion
       ? 'Pertanyaan sensitif · tidak dapat dijawab'
@@ -465,7 +476,9 @@ function AnswerBlock({
         ? null
         : answer.citations?.length > 0
           ? "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz"
-          : 'Jawaban AI · belum ditinjau ustadz');
+          : thinkingSecs
+            ? `Berpikir selama ${thinkingSecs} detik`
+            : 'Jawaban AI · belum ditinjau ustadz');
 
   function handleCopy() {
     Share.share({ message: answer.body });
