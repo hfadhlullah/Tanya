@@ -35,7 +35,7 @@
 - [x] 6.2 Add tests for answer attribution, verified badge rules, and citation requirements.
 - [x] 6.3 Add tests for ustadz pending/approved access behavior.
 - [x] 6.4 Add tests for answer bank matching and source retrieval.
-- [ ] 6.5 Validate staging deployment through Coolify before production rollout.
+- [x] 6.5 Validate staging deployment through Coolify before production rollout.
 
 ## Post-Implementation
 - [x] Update AGENTS.md in the project root for new architecture, commands, and operational constraints.

@@ -19,7 +19,7 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && chown -R bun:bun /app /entrypoint.sh
+RUN mkdir -p /app/uploads && chmod +x /entrypoint.sh && chown -R bun:bun /app /entrypoint.sh
 USER bun
 EXPOSE 3000
 ENTRYPOINT ["/entrypoint.sh"]

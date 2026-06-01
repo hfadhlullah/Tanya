@@ -8,6 +8,8 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       CORS_ORIGIN: ${CORS_ORIGIN}
       DEMO_ADMIN_KEY: ${DEMO_ADMIN_KEY}
+      STORAGE_LOCAL_PATH: /app/uploads
+      STORAGE_BASE_URL: ${STORAGE_BASE_URL}
     depends_on:
       postgres:
         condition: service_healthy
@@ -18,6 +20,8 @@ services:
       retries: 5
     ports:
       - "${API_PORT:-3001}:3000"
+    volumes:
+      - uploads_data:/app/uploads
     restart: unless-stopped
 
   migrate:
@@ -64,3 +68,4 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:
