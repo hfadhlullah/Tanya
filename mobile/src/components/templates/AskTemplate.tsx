@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   FlatList,
+  Linking,
   SafeAreaView,
   Share,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Markdown, { type MarkdownProps } from 'react-native-markdown-display';
 import { StatusBar } from 'expo-status-bar';
 import { type AuthUser } from '../../api/auth';
 import { type Answer, type Question } from '../../api/questions';
@@ -206,7 +208,11 @@ function QuestionTurn({
 
         {/* Answer area */}
         {answer ? (
-          <AnswerBlock answer={answer} animate={newAnswerIds.has(answer.id)} />
+          <AnswerBlock
+            answer={answer}
+            animate={newAnswerIds.has(answer.id)}
+            isSensitiveQuestion={question.isSensitive}
+          />
         ) : (
           <ProcessingIndicator isSensitive={question.isSensitive} />
         )}
@@ -262,7 +268,165 @@ function ProcessingIndicator({ isSensitive }: { isSensitive: boolean }) {
 
 const TYPEWRITER_SPEED = 12; // ms per character
 
-function AnswerBlock({ answer, animate }: { answer: Answer; animate: boolean }) {
+const markdownStyles: MarkdownProps['style'] = {
+  body: {
+    fontFamily: 'Georgia, serif',
+    fontSize: 15,
+    lineHeight: 26,
+    color: colors.ink,
+  },
+  paragraph: {
+    marginTop: 0,
+    marginBottom: 14,
+  },
+  heading1: {
+    fontFamily: 'Georgia, serif',
+    fontSize: 24,
+    lineHeight: 30,
+    color: colors.ink,
+    fontWeight: '700',
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  heading2: {
+    fontFamily: 'Georgia, serif',
+    fontSize: 21,
+    lineHeight: 28,
+    color: colors.ink,
+    fontWeight: '700',
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  heading3: {
+    fontFamily: 'Georgia, serif',
+    fontSize: 18,
+    lineHeight: 24,
+    color: colors.ink,
+    fontWeight: '700',
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  heading4: {
+    fontFamily: 'Georgia, serif',
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.ink,
+    fontWeight: '700',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  heading5: {
+    fontFamily: 'Georgia, serif',
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.ink,
+    fontWeight: '700',
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  heading6: {
+    fontFamily: 'Georgia, serif',
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.muted,
+    fontWeight: '700',
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  strong: {
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  em: {
+    fontStyle: 'italic',
+  },
+  bullet_list: {
+    marginTop: 0,
+    marginBottom: 14,
+  },
+  ordered_list: {
+    marginTop: 0,
+    marginBottom: 14,
+  },
+  list_item: {
+    marginTop: 0,
+    marginBottom: 8,
+  },
+  blockquote: {
+    borderLeftWidth: 3,
+    borderLeftColor: colors.emerald,
+    paddingLeft: 12,
+    marginLeft: 0,
+    marginRight: 0,
+    marginTop: 2,
+    marginBottom: 14,
+    opacity: 0.95,
+  },
+  code_inline: {
+    backgroundColor: colors.emeraldSoft,
+    color: colors.emeraldDark,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  code_block: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 2,
+    marginBottom: 14,
+    color: colors.ink,
+  },
+  fence: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 2,
+    marginBottom: 14,
+    color: colors.ink,
+  },
+  link: {
+    color: colors.emeraldDark,
+    textDecorationLine: 'underline',
+  },
+  hr: {
+    backgroundColor: colors.line,
+    height: 1,
+    marginVertical: 14,
+  },
+};
+
+function AnswerMarkdown({ content, showCursor }: { content: string; showCursor: boolean }) {
+  return (
+    <View style={s.answerTextWrap}>
+      <Markdown
+        style={markdownStyles}
+        onLinkPress={(url) => {
+          Linking.openURL(url);
+          return true;
+        }}
+      >
+        {content}
+      </Markdown>
+      {showCursor ? <Text style={s.cursor}>|</Text> : null}
+    </View>
+  );
+}
+
+function AnswerBlock({
+  answer,
+  animate,
+  isSensitiveQuestion,
+}: {
+  answer: Answer;
+  animate: boolean;
+  isSensitiveQuestion: boolean;
+}) {
   const [displayed, setDisplayed] = useState(animate ? '' : answer.body);
   const [done, setDone] = useState(!animate);
   const [liked, setLiked] = useState<'up' | 'down' | null>(null);
@@ -286,7 +450,12 @@ function AnswerBlock({ answer, animate }: { answer: Answer; animate: boolean }) 
 
   const isVerified = answer.status === 'VERIFIED';
   const ustadzName = answer.verifyingUstadz?.publicName;
-  const sourceLabel = answer.label ?? (isVerified ? null : 'Jawaban AI · belum ditinjau ustadz');
+  const sourceLabel = answer.label
+    ?? (isSensitiveQuestion
+      ? 'Pertanyaan sensitif · tidak dapat dijawab'
+      : isVerified
+        ? null
+        : 'Jawaban AI · belum ditinjau ustadz');
 
   function handleCopy() {
     Share.share({ message: answer.body });
@@ -310,10 +479,7 @@ function AnswerBlock({ answer, animate }: { answer: Answer; animate: boolean }) 
       </View>
 
       {/* Answer prose */}
-      <Text style={s.answerText}>
-        {displayed}
-        {!done && <Text style={s.cursor}>|</Text>}
-      </Text>
+      <AnswerMarkdown content={displayed} showCursor={!done} />
 
       {/* Citation pills */}
       {done && answer.citations?.length > 0 && (
@@ -454,12 +620,7 @@ const s = StyleSheet.create({
   verifiedPill: { color: colors.emeraldDark, fontWeight: '700' },
 
   // answer prose
-  answerText: {
-    fontFamily: 'Georgia, serif',
-    fontSize: 15,
-    lineHeight: 26,
-    color: colors.ink,
-  },
+  answerTextWrap: { position: 'relative' },
   cursor: { color: colors.ink, fontWeight: '300' },
 
   // citations

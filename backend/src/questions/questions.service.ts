@@ -6,6 +6,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SafetyService } from '../safety/safety.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 
+const SENSITIVE_QUESTION_REFUSAL =
+  'Maaf, pertanyaan ini tidak dapat kami jawab karena termasuk topik yang dilarang atau berisiko. Silakan ajukan pertanyaan seputar ibadah, akhlak, atau ilmu Islam yang aman dan bermanfaat.';
+
 @Injectable()
 export class QuestionsService {
   constructor(
@@ -34,13 +37,13 @@ export class QuestionsService {
       : await this.answerBankService.findVerifiedMatch(text);
 
     const questionStatus = classification.isSensitive
-      ? QuestionStatus.ROUTED_TO_USTADZ
+      ? QuestionStatus.ANSWERED_VERIFIED
       : verifiedMatch
         ? QuestionStatus.ANSWERED_VERIFIED
         : QuestionStatus.RECEIVED;
 
     // Create question (and verified answer if available) in a short tx
-    const { verifiedAnswer, question } = await this.prisma.$transaction(async (tx) => {
+    const { answer: immediateAnswer, question } = await this.prisma.$transaction(async (tx) => {
       const createdQuestion = await tx.question.create({
         data: {
           userId,
@@ -55,6 +58,23 @@ export class QuestionsService {
       });
 
       if (classification.isSensitive) {
+        const blockedAnswer = await tx.answer.create({
+          data: {
+            questionId: createdQuestion.id,
+            body: SENSITIVE_QUESTION_REFUSAL,
+            status: AnswerStatus.VERIFIED,
+            language: dto.language ?? 'id',
+            isSensitive: true,
+            verifiedAt: new Date(),
+          },
+          include: {
+            citations: { include: { source: true } },
+            verifyingUstadz: {
+              select: { id: true, publicName: true, bio: true, specialties: true, madhhab: true },
+            },
+          },
+        });
+
         await tx.auditLog.create({
           data: {
             actorId: userId,
@@ -64,7 +84,14 @@ export class QuestionsService {
             metadata: { isSensitive: true, topic: classification.topic },
           },
         });
-        return { verifiedAnswer: null, question: createdQuestion };
+        return {
+          answer: {
+            ...blockedAnswer,
+            label: 'Pertanyaan sensitif · tidak dapat dijawab',
+            verified: true,
+          },
+          question: createdQuestion,
+        };
       }
 
       if (verifiedMatch) {
@@ -92,16 +119,16 @@ export class QuestionsService {
           },
         });
         return {
-          verifiedAnswer: { ...reusedAnswer, verified: true, reusedFromAnswerId: verifiedMatch.answerId },
+          answer: { ...reusedAnswer, verified: true, reusedFromAnswerId: verifiedMatch.answerId },
           question: createdQuestion,
         };
       }
 
-      return { verifiedAnswer: null, question: createdQuestion };
+      return { answer: null, question: createdQuestion };
     });
 
     // LLM answer generation happens outside the transaction (no timeout risk)
-    let answer = verifiedAnswer;
+    let answer = immediateAnswer;
     if (!classification.isSensitive && !verifiedMatch) {
       answer = await this.sourcedAnswerService.createTierOneAnswer(question, this.prisma);
     }

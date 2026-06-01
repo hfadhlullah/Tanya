@@ -3,6 +3,16 @@ import { createQuestion, listQuestions, type Question } from '../api/questions';
 import { getStoredUser, logout, type AuthUser } from '../api/auth';
 import { AskTemplate } from '../components/templates/AskTemplate';
 
+const SENSITIVE_QUESTION_REFUSAL = {
+  id: 'sensitive-refusal',
+  body: 'Maaf, pertanyaan ini tidak dapat kami jawab karena termasuk topik yang dilarang atau berisiko. Silakan ajukan pertanyaan seputar ibadah, akhlak, atau ilmu Islam yang aman dan bermanfaat.',
+  status: 'VERIFIED',
+  language: 'id',
+  label: 'Pertanyaan sensitif · tidak dapat dijawab',
+  citations: [],
+  verifyingUstadz: null,
+};
+
 function makeSessionId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -62,12 +72,20 @@ export function AskScreen({ onResetAuth }: Props) {
 
     try {
       const result = await createQuestion({ text, sessionId: currentSessionId });
+      const answer = result.answer
+        ?? (result.question.isSensitive || result.route === 'ustadz_review'
+          ? {
+              ...SENSITIVE_QUESTION_REFUSAL,
+              id: `${SENSITIVE_QUESTION_REFUSAL.id}-${result.question.id}`,
+              language: result.question.language,
+            }
+          : null);
       const newQuestion: Question = {
         ...result.question,
-        answers: result.answer ? [result.answer] : [],
+        answers: answer ? [answer] : [],
       };
-      if (result.answer) {
-        setNewAnswerIds((prev) => new Set(prev).add(result.answer!.id));
+      if (answer) {
+        setNewAnswerIds((prev) => new Set(prev).add(answer.id));
       }
       // Replace optimistic entry with real question
       setAllQuestions((prev) =>

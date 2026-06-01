@@ -74,6 +74,7 @@ describe('QuestionsService', () => {
         topic: undefined,
         isSensitive: false,
         preferredUstadzId: undefined,
+        sessionId: null,
         status: 'RECEIVED',
       },
     });
@@ -95,8 +96,18 @@ describe('QuestionsService', () => {
     prisma.question.create.mockResolvedValue({
       id: 'question-2',
       isSensitive: true,
-      status: 'ROUTED_TO_USTADZ',
+      status: 'ANSWERED_VERIFIED',
     });
+    prisma.answer = {
+      ...prisma.answer,
+      create: jest.fn().mockResolvedValue({
+        id: 'answer-2',
+        body: 'blocked',
+        status: 'VERIFIED',
+        citations: [],
+        verifyingUstadz: null,
+      }),
+    };
 
     const result = await service.create('user-1', {
       text: 'Bagaimana pembagian waris?',
@@ -112,8 +123,18 @@ describe('QuestionsService', () => {
         topic: 'waris',
         isSensitive: true,
         preferredUstadzId: undefined,
-        status: 'ROUTED_TO_USTADZ',
+        sessionId: null,
+        status: 'ANSWERED_VERIFIED',
       },
+    });
+    expect(prisma.answer.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        questionId: 'question-2',
+        status: 'VERIFIED',
+        isSensitive: true,
+        verifiedAt: expect.any(Date),
+      }),
+      include: expect.any(Object),
     });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
       data: {
@@ -128,7 +149,14 @@ describe('QuestionsService', () => {
       },
     });
     expect(result.route).toBe('ustadz_review');
-    expect(result.answer).toBeNull();
+    expect(result.answer).toEqual(
+      expect.objectContaining({
+        id: 'answer-2',
+        status: 'VERIFIED',
+        label: 'Pertanyaan sensitif · tidak dapat dijawab',
+        verified: true,
+      }),
+    );
   });
 
   it('stores sensitive question and audit log in one transaction', async () => {
@@ -137,6 +165,15 @@ describe('QuestionsService', () => {
       topic: 'takfir',
     });
     prisma.question.create.mockResolvedValue({ id: 'question-3' });
+    prisma.answer = {
+      ...prisma.answer,
+      create: jest.fn().mockResolvedValue({
+        id: 'answer-3',
+        status: 'VERIFIED',
+        citations: [],
+        verifyingUstadz: null,
+      }),
+    };
 
     await service.create('user-1', {
       text: 'Apakah boleh takfir?',

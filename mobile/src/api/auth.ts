@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
+const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 export const TOKEN_KEY = '@tanya_token';
 export const USER_KEY = '@tanya_user';

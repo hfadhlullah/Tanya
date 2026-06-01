@@ -1,0 +1,111 @@
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 220px;
+  background: var(--white);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 12px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.brand {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--emerald-dark);
+  padding: 4px 12px 16px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.nav-btn {
+  background: none;
+  color: var(--ink);
+  font-weight: 500;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.nav-btn:hover { background: var(--bg); }
+.nav-btn.active { background: var(--emerald-soft); color: var(--emerald-dark); }
+
+.logout {
+  margin-top: auto;
+  width: 100%;
+}
+
+.content {
+  flex: 1;
+  padding: 28px 32px;
+  overflow-y: auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.card {
+  background: var(--white);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.error { color: var(--danger-text); padding: 12px; }
+.empty { color: var(--muted); padding: 20px; text-align: center; }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 24px;
+  width: 480px;
+  max-width: 95vw;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal h2 { font-size: 16px; }
+
+.form-row { display: flex; flex-direction: column; gap: 4px; }
+.form-row label { font-size: 12px; font-weight: 600; color: var(--muted); }
+
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.detail-panel {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  line-height: 1.7;
+}

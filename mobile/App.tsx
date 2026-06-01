@@ -1,16 +1,29 @@
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getStoredToken, guestLogin } from './src/api/auth';
+import { getStoredToken, getStoredUser, guestLogin, type AuthUser } from './src/api/auth';
 import { OnboardingScreen } from './src/screens/onboarding/OnboardingScreen';
 import { AskScreen } from './src/screens/AskScreen';
+import { UstadzOnboardingScreen } from './src/screens/ustadz/UstadzOnboardingScreen';
+import { UstadzDashboardScreen } from './src/screens/ustadz/UstadzDashboardScreen';
+import { UstadzReviewQueueScreen } from './src/screens/ustadz/UstadzReviewQueueScreen';
+import { UstadzReviewDetailScreen } from './src/screens/ustadz/UstadzReviewDetailScreen';
+import type { ReviewAnswer } from './src/api/ustadz';
 
 const ONBOARDED_KEY = '@tanya_onboarded';
 
-type Screen = 'loading' | 'onboarding' | 'app';
+type Screen =
+  | 'loading'
+  | 'onboarding'
+  | 'app'
+  | 'ustadz_onboarding'
+  | 'ustadz_dashboard'
+  | 'ustadz_queue'
+  | 'ustadz_review_detail';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('loading');
   const [sessionKey, setSessionKey] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<ReviewAnswer | null>(null);
 
   useEffect(() => {
     bootstrap();
@@ -22,8 +35,15 @@ export default function App() {
       await guestLogin();
     }
 
-    const onboarded = await AsyncStorage.getItem(ONBOARDED_KEY);
+    const user = await getStoredUser();
     setSessionKey((k) => k + 1);
+
+    if (user?.role === 'USTADZ') {
+      setScreen('ustadz_dashboard');
+      return;
+    }
+
+    const onboarded = await AsyncStorage.getItem(ONBOARDED_KEY);
     setScreen(onboarded === 'true' ? 'app' : 'onboarding');
   }
 
@@ -34,6 +54,47 @@ export default function App() {
   }
 
   if (screen === 'loading') return null;
+
   if (screen === 'onboarding') return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+
+  if (screen === 'ustadz_onboarding') {
+    return (
+      <UstadzOnboardingScreen
+        onComplete={() => setScreen('ustadz_dashboard')}
+      />
+    );
+  }
+
+  if (screen === 'ustadz_dashboard') {
+    return (
+      <UstadzDashboardScreen
+        onOpenQueue={() => setScreen('ustadz_queue')}
+        onLogout={bootstrap}
+      />
+    );
+  }
+
+  if (screen === 'ustadz_queue') {
+    return (
+      <UstadzReviewQueueScreen
+        onSelect={(answer) => {
+          setSelectedAnswer(answer);
+          setScreen('ustadz_review_detail');
+        }}
+        onBack={() => setScreen('ustadz_dashboard')}
+      />
+    );
+  }
+
+  if (screen === 'ustadz_review_detail' && selectedAnswer) {
+    return (
+      <UstadzReviewDetailScreen
+        answer={selectedAnswer}
+        onDone={() => setScreen('ustadz_queue')}
+        onBack={() => setScreen('ustadz_queue')}
+      />
+    );
+  }
+
   return <AskScreen key={sessionKey} onResetAuth={bootstrap} />;
 }
