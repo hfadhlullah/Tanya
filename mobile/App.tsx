@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStoredToken, getStoredUser, guestLogin, type AuthUser } from './src/api/auth';
+import { getMyProfile } from './src/api/ustadz';
 import { OnboardingScreen } from './src/screens/onboarding/OnboardingScreen';
 import { AskScreen } from './src/screens/AskScreen';
 import { UstadzOnboardingScreen } from './src/screens/ustadz/UstadzOnboardingScreen';
@@ -39,7 +40,8 @@ export default function App() {
     setSessionKey((k) => k + 1);
 
     if (user?.role === 'USTADZ') {
-      setScreen('ustadz_dashboard');
+      const profile = await getMyProfile().catch(() => null);
+      setScreen(profile?.status === 'APPROVED' ? 'ustadz_dashboard' : 'ustadz_onboarding');
       return;
     }
 

@@ -1,6 +1,6 @@
 import { authHeaders, getStoredToken } from './auth';
 
-const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 async function headers() {
   const token = await getStoredToken();
@@ -46,6 +46,26 @@ export interface ReviewAnswer {
 export interface ReviewQueue {
   profileId: string;
   answers: ReviewAnswer[];
+}
+
+export async function getMyProfile() {
+  const res = await fetch(`${apiUrl}/ustadz/me/profile`, {
+    headers: await headers(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? 'Profil tidak dapat dimuat.');
+  return data as UstadzProfile | null;
+}
+
+export async function updateProfile(payload: OnboardUstadzPayload) {
+  const res = await fetch(`${apiUrl}/ustadz/me/profile`, {
+    method: 'PATCH',
+    headers: await headers(),
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? 'Update profil gagal.');
+  return data as { profile: UstadzProfile };
 }
 
 export async function onboardUstadz(payload: OnboardUstadzPayload) {

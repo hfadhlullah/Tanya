@@ -68,6 +68,60 @@ export class UstadzService {
     return { profile, locked: true };
   }
 
+  async getProfile(userId: string) {
+    return this.prisma.ustadzProfile.findUnique({
+      where: { userId: userId.trim() },
+      include: { sensitiveRules: true, credentialFiles: true },
+    });
+  }
+
+  async updateProfile(userId: string, dto: OnboardUstadzDto) {
+    const cleanUserId = userId.trim();
+
+    const profile = await this.prisma.$transaction(async (tx) => {
+      const ustadz = await tx.ustadzProfile.upsert({
+        where: { userId: cleanUserId },
+        update: {
+          publicName: dto.publicName.trim(),
+          bio: dto.bio?.trim(),
+          credentials: dto.credentials?.trim(),
+          publicProfile: dto.publicProfile?.trim(),
+          specialties: dto.specialties.map((s) => s.trim()).filter(Boolean),
+          madhhab: dto.madhhab?.trim(),
+          status: UstadzStatus.APPROVED,
+        },
+        create: {
+          userId: cleanUserId,
+          publicName: dto.publicName.trim(),
+          bio: dto.bio?.trim(),
+          credentials: dto.credentials?.trim(),
+          publicProfile: dto.publicProfile?.trim(),
+          specialties: dto.specialties.map((s) => s.trim()).filter(Boolean),
+          madhhab: dto.madhhab?.trim(),
+          status: UstadzStatus.APPROVED,
+        },
+      });
+
+      if (dto.gatedTopics?.length) {
+        await tx.sensitiveRule.deleteMany({
+          where: { ustadzId: ustadz.id, scope: SensitiveRuleScope.USTADZ },
+        });
+        await tx.sensitiveRule.createMany({
+          data: dto.gatedTopics.map((topic) => ({
+            ustadzId: ustadz.id,
+            scope: SensitiveRuleScope.USTADZ,
+            topic: topic.trim(),
+            pattern: topic.trim(),
+          })),
+        });
+      }
+
+      return ustadz;
+    });
+
+    return { profile };
+  }
+
   async getDashboard(userId: string) {
     const profile = await this.prisma.ustadzProfile.findUnique({
       where: { userId: userId.trim() },

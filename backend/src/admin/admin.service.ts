@@ -1,11 +1,46 @@
-import { Injectable } from '@nestjs/common';
-import { SensitiveRuleScope } from '@prisma/client';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { SensitiveRuleScope, UserRole, UstadzStatus } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateUstadzDto } from './dto/create-ustadz.dto';
 import { UpsertSensitiveRuleDto } from './dto/upsert-sensitive-rule.dto';
 
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async createUstadz(dto: CreateUstadzDto) {
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) throw new ConflictException('Email already registered');
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: dto.email.trim(),
+          passwordHash,
+          displayName: dto.publicName.trim(),
+          role: UserRole.USTADZ,
+        },
+      });
+
+      const profile = await tx.ustadzProfile.create({
+        data: {
+          userId: user.id,
+          publicName: dto.publicName.trim(),
+          bio: dto.bio?.trim(),
+          credentials: dto.credentials?.trim(),
+          publicProfile: dto.publicProfile?.trim(),
+          specialties: dto.specialties?.map((s) => s.trim()).filter(Boolean) ?? [],
+          madhhab: dto.madhhab?.trim(),
+          status: UstadzStatus.APPROVED,
+        },
+      });
+
+      return { user: { id: user.id, email: user.email, role: user.role }, profile };
+    });
+  }
 
   listUstadzApplications() {
     return this.prisma.ustadzProfile.findMany({

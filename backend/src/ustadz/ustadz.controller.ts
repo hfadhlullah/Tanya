@@ -17,6 +17,18 @@ export class UstadzController {
     return this.ustadzService.onboard(user.id, dto);
   }
 
+  @Get('me/profile')
+  @UseGuards(DemoAuthGuard)
+  getProfile(@CurrentUser() user: CurrentUserType) {
+    return this.ustadzService.getProfile(user.id);
+  }
+
+  @Patch('me/profile')
+  @UseGuards(DemoAuthGuard)
+  updateProfile(@CurrentUser() user: CurrentUserType, @Body() dto: OnboardUstadzDto) {
+    return this.ustadzService.updateProfile(user.id, dto);
+  }
+
   @Get('me/dashboard')
   @UseGuards(DemoAuthGuard)
   getDashboard(@CurrentUser() user: CurrentUserType) {

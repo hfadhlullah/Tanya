@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { onboardUstadz } from '../../api/ustadz';
+import { updateProfile } from '../../api/ustadz';
 import { BrandText } from '../../components/atoms/BrandText';
 import { PrimaryButton } from '../../components/atoms/PrimaryButton';
 import { colors } from '../../theme/ui-reference';
@@ -44,7 +44,7 @@ export function UstadzOnboardingScreen({ onComplete }: Props) {
 
     setLoading(true);
     try {
-      await onboardUstadz({ publicName: name, bio, credentials, specialties, madhhab });
+      await updateProfile({ publicName: name, bio, credentials, specialties, madhhab });
       onComplete();
     } catch (e: any) {
       Alert.alert('Gagal', e.message);
@@ -67,7 +67,7 @@ export function UstadzOnboardingScreen({ onComplete }: Props) {
           Daftar sebagai Ustadz
         </BrandText>
         <BrandText variant="caption" style={styles.sub}>
-          Profil Anda akan ditinjau sebelum diaktifkan.
+          Lengkapi profil Anda untuk mulai menggunakan dashboard ustadz.
         </BrandText>
 
         <Field label="Nama Publik *">

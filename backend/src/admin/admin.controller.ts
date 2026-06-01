@@ -1,12 +1,18 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { DemoAdminGuard } from '../auth/demo-admin.guard';
 import { AdminService } from './admin.service';
+import { CreateUstadzDto } from './dto/create-ustadz.dto';
 import { UpsertSensitiveRuleDto } from './dto/upsert-sensitive-rule.dto';
 
 @Controller('admin')
 @UseGuards(DemoAdminGuard)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
+
+  @Post('ustadz')
+  createUstadz(@Body() dto: CreateUstadzDto) {
+    return this.adminService.createUstadz(dto);
+  }
 
   @Get('ustadz-applications')
   listUstadzApplications() {

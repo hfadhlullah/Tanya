@@ -1,6 +1,6 @@
 import { authHeaders, getStoredToken } from './auth';
 
-const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 export type Citation = {
   id: string;

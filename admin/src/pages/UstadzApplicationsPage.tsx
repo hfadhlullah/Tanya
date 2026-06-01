@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, type UstadzApplication } from '../api';
+import { api, type CreateUstadzPayload, type UstadzApplication } from '../api';
 
 export function UstadzApplicationsPage() {
   const [data, setData] = useState<UstadzApplication[]>([]);
@@ -7,6 +7,12 @@ export function UstadzApplicationsPage() {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<UstadzApplication | null>(null);
   const [working, setWorking] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState<CreateUstadzPayload>({
+    email: '', password: '', publicName: '', bio: '', credentials: '',
+    publicProfile: '', specialties: [], madhhab: '',
+  });
+  const [specialtiesRaw, setSpecialtiesRaw] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -25,6 +31,22 @@ export function UstadzApplicationsPage() {
     try {
       await api.approveUstadz(app.id);
       setSelected(null);
+      await load();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function handleCreate() {
+    const specialties = specialtiesRaw.split(',').map((s) => s.trim()).filter(Boolean);
+    setWorking(true);
+    try {
+      await api.createUstadz({ ...form, specialties });
+      setShowCreate(false);
+      setForm({ email: '', password: '', publicName: '', bio: '', credentials: '', publicProfile: '', specialties: [], madhhab: '' });
+      setSpecialtiesRaw('');
       await load();
     } catch (e: any) {
       alert(e.message);
@@ -60,7 +82,10 @@ export function UstadzApplicationsPage() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Ustadz Applications</h1>
-        <button className="secondary" onClick={load}>Refresh</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setShowCreate(true)}>+ Tambah Ustadz</button>
+          <button className="secondary" onClick={load}>Refresh</button>
+        </div>
       </div>
 
       {loading && <p className="empty">Memuat...</p>}
@@ -97,6 +122,72 @@ export function UstadzApplicationsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {showCreate && (
+        <div className="modal-overlay" onClick={() => setShowCreate(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Tambah Ustadz</h2>
+            <div className="detail-panel" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {(
+                [
+                  { label: 'Email *', key: 'email', type: 'email', placeholder: 'ustadz@email.com' },
+                  { label: 'Password * (min 8 karakter)', key: 'password', type: 'password', placeholder: '••••••••' },
+                  { label: 'Nama Publik *', key: 'publicName', type: 'text', placeholder: 'Nama yang ditampilkan' },
+                  { label: 'Madzhab', key: 'madhhab', type: 'text', placeholder: "cth: Syafi'i" },
+                  { label: 'Link Profil', key: 'publicProfile', type: 'text', placeholder: 'https://...' },
+                ] as { label: string; key: keyof CreateUstadzPayload; type: string; placeholder: string }[]
+              ).map(({ label, key, type, placeholder }) => (
+                <label key={key}>
+                  <div style={{ fontSize: 13, marginBottom: 4, fontWeight: 600 }}>{label}</div>
+                  <input
+                    type={type}
+                    placeholder={placeholder}
+                    value={(form[key] as string) ?? ''}
+                    onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                  />
+                </label>
+              ))}
+              <label>
+                <div style={{ fontSize: 13, marginBottom: 4, fontWeight: 600 }}>Bidang Keahlian (pisah koma)</div>
+                <input
+                  type="text"
+                  placeholder="cth: fiqh, akidah, tafsir"
+                  value={specialtiesRaw}
+                  onChange={(e) => setSpecialtiesRaw(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </label>
+              <label>
+                <div style={{ fontSize: 13, marginBottom: 4, fontWeight: 600 }}>Bio</div>
+                <textarea
+                  placeholder="Latar belakang singkat"
+                  value={form.bio ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </label>
+              <label>
+                <div style={{ fontSize: 13, marginBottom: 4, fontWeight: 600 }}>Referensi / Ijazah</div>
+                <textarea
+                  placeholder="Lembaga pendidikan atau referensi"
+                  value={form.credentials ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, credentials: e.target.value }))}
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </label>
+            </div>
+            <div className="modal-actions">
+              <button className="secondary" onClick={() => setShowCreate(false)}>Batal</button>
+              <button disabled={working} onClick={handleCreate}>
+                {working ? 'Menyimpan...' : 'Buat Akun Ustadz'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -61,7 +61,20 @@ export interface AuditLog {
   metadata?: Record<string, unknown>;
 }
 
+export interface CreateUstadzPayload {
+  email: string;
+  password: string;
+  publicName: string;
+  bio?: string;
+  credentials?: string;
+  publicProfile?: string;
+  specialties?: string[];
+  madhhab?: string;
+}
+
 export const api = {
+  createUstadz: (body: CreateUstadzPayload) =>
+    req('/admin/ustadz', { method: 'POST', body: JSON.stringify(body) }),
   listUstadzApplications: () => req<UstadzApplication[]>('/admin/ustadz-applications'),
   approveUstadz: (id: string) => req(`/ustadz/${id}/approve`, { method: 'PATCH' }),
   rejectUstadz: (id: string) => req(`/ustadz/${id}/reject`, { method: 'PATCH' }),
