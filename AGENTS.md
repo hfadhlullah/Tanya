@@ -15,3 +15,13 @@ Use `@/prompter/AGENTS.md` to learn:
 - Show Remaining Tasks
 
 <!-- PROMPTER:END -->
+
+## Tanya Architecture Notes
+
+- Active approved proposal: `prompter/changes/add-tanya-mvp-foundation/`.
+- Backend: NestJS in `backend/`.
+- Mobile: Expo React Native in `mobile/`.
+- Database: PostgreSQL with pgvector via `pgvector/pgvector:pg16`.
+- Deployment target: Coolify on VPS with separate staging and production environments.
+- UI/UX reference: `docs/onboard-ux/` is the locked product-wide reference; preserve the emerald visual direction across MVP screens.
+- Mobile components use atomic design: `atoms`, `molecules`, `organisms`, `templates`, and `screens` under `mobile/src/`.

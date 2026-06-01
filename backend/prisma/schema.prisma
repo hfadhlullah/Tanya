@@ -1,0 +1,225 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  USTADZ
+  ADMIN
+}
+
+enum UstadzStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum QuestionStatus {
+  RECEIVED
+  ROUTED_TO_USTADZ
+  ANSWERED_SOURCE
+  ANSWERED_VERIFIED
+}
+
+enum AnswerStatus {
+  AI_PENDING
+  VERIFIED
+}
+
+enum SourceType {
+  QURAN
+  HADITH
+  USTADZ_CONTENT
+}
+
+enum SensitiveRuleScope {
+  GLOBAL
+  USTADZ
+}
+
+enum AuditAction {
+  USTADZ_APPROVED
+  USTADZ_REJECTED
+  SENSITIVE_RULE_CHANGED
+  QUESTION_CLASSIFIED
+  ANSWER_APPROVED
+  ANSWER_EDITED
+}
+
+model User {
+  id             String          @id @default(cuid())
+  email          String          @unique
+  displayName    String?
+  role           UserRole        @default(USER)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  ustadzProfile  UstadzProfile?
+  questions      Question[]
+  savedAnswers   SavedAnswer[]
+  auditLogs      AuditLog[]      @relation("AuditActor")
+  analyticsEvents AnalyticsEvent[]
+}
+
+model UstadzProfile {
+  id             String              @id @default(cuid())
+  userId         String              @unique
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publicName     String
+  bio            String?
+  credentials    String?
+  publicProfile  String?
+  specialties    String[]            @default([])
+  madhhab        String?
+  status         UstadzStatus        @default(PENDING)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  credentialFiles CredentialFile[]
+  answers        Answer[]
+  sensitiveRules SensitiveRule[]
+  preferredQuestions Question[]
+}
+
+model CredentialFile {
+  id        String        @id @default(cuid())
+  ustadzId  String
+  ustadz    UstadzProfile @relation(fields: [ustadzId], references: [id], onDelete: Cascade)
+  fileUrl   String
+  label     String?
+  createdAt DateTime      @default(now())
+}
+
+model Question {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text          String
+  language      String         @default("id")
+  topic         String?
+  isSensitive   Boolean        @default(false)
+  preferredUstadzId String?
+  preferredUstadz UstadzProfile? @relation(fields: [preferredUstadzId], references: [id], onDelete: SetNull)
+  status        QuestionStatus @default(RECEIVED)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  answers       Answer[]
+
+  @@index([userId, createdAt])
+  @@index([isSensitive, status])
+  @@index([preferredUstadzId])
+}
+
+model Answer {
+  id                 String         @id @default(cuid())
+  questionId         String
+  question           Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  body               String
+  status             AnswerStatus   @default(AI_PENDING)
+  verifyingUstadzId  String?
+  verifyingUstadz    UstadzProfile? @relation(fields: [verifyingUstadzId], references: [id])
+  topic              String?
+  madhhab            String?
+  language           String         @default("id")
+  isSensitive        Boolean        @default(false)
+  verifiedAt         DateTime?
+  embedding          Unsupported("vector(1536)")?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  citations          Citation[]
+  savedBy            SavedAnswer[]
+
+  @@index([status, createdAt])
+  @@index([verifyingUstadzId])
+}
+
+model Citation {
+  id        String  @id @default(cuid())
+  answerId  String
+  answer    Answer  @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  sourceId  String
+  source    Source  @relation(fields: [sourceId], references: [id])
+  label     String
+  excerpt   String?
+}
+
+model Source {
+  id             String        @id @default(cuid())
+  type           SourceType
+  title          String
+  reference      String?
+  license        String?
+  language       String        @default("id")
+  createdAt      DateTime      @default(now())
+  corpusChunks   CorpusChunk[]
+  citations      Citation[]
+}
+
+model CorpusChunk {
+  id        String                    @id @default(cuid())
+  sourceId  String
+  source    Source                    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  content   String
+  topic     String?
+  metadata  Json?
+  embedding Unsupported("vector(1536)")?
+  createdAt DateTime                  @default(now())
+
+  @@index([sourceId])
+  @@index([topic])
+}
+
+model SensitiveRule {
+  id        String             @id @default(cuid())
+  scope     SensitiveRuleScope  @default(GLOBAL)
+  ustadzId  String?
+  ustadz    UstadzProfile?      @relation(fields: [ustadzId], references: [id], onDelete: Cascade)
+  topic     String
+  pattern   String?
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([scope, isActive])
+  @@index([ustadzId])
+}
+
+model SavedAnswer {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answerId  String
+  answer    Answer   @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, answerId])
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  actorId   String?
+  actor     User?       @relation("AuditActor", fields: [actorId], references: [id])
+  action    AuditAction
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime    @default(now())
+
+  @@index([action, createdAt])
+  @@index([entity, entityId])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([userId])
+}
