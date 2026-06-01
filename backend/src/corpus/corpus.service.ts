@@ -1,12 +1,16 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { JobsService } from '../jobs/jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCorpusChunkDto } from './dto/create-corpus-chunk.dto';
 import { CreateSourceDto } from './dto/create-source.dto';
 
 @Injectable()
 export class CorpusService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jobsService: JobsService,
+  ) {}
 
   createSource(dto: CreateSourceDto) {
     return this.prisma.source.create({
@@ -37,13 +41,19 @@ export class CorpusService {
       throw new BadRequestException('sourceId does not exist');
     }
 
-    return this.prisma.corpusChunk.create({
-      data: {
-        sourceId: dto.sourceId,
-        content: dto.content.trim(),
-        topic: dto.topic?.trim(),
-        metadata: dto.metadata as Prisma.InputJsonValue | undefined,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const chunk = await tx.corpusChunk.create({
+        data: {
+          sourceId: dto.sourceId,
+          content: dto.content.trim(),
+          topic: dto.topic?.trim(),
+          metadata: dto.metadata as Prisma.InputJsonValue | undefined,
+        },
+      });
+
+      await this.jobsService.enqueueCorpusEmbedding(chunk.id, tx);
+
+      return chunk;
     });
   }
 

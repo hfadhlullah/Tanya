@@ -7,6 +7,8 @@ CREATE TYPE "AnswerStatus" AS ENUM ('AI_PENDING', 'VERIFIED');
 CREATE TYPE "SourceType" AS ENUM ('QURAN', 'HADITH', 'USTADZ_CONTENT');
 CREATE TYPE "SensitiveRuleScope" AS ENUM ('GLOBAL', 'USTADZ');
 CREATE TYPE "AuditAction" AS ENUM ('USTADZ_APPROVED', 'USTADZ_REJECTED', 'SENSITIVE_RULE_CHANGED', 'QUESTION_CLASSIFIED', 'ANSWER_APPROVED', 'ANSWER_EDITED');
+CREATE TYPE "JobType" AS ENUM ('CORPUS_EMBEDDING', 'ANALYTICS_AGGREGATION');
+CREATE TYPE "JobStatus" AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
 
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -144,6 +146,20 @@ CREATE TABLE "AnalyticsEvent" (
     CONSTRAINT "AnalyticsEvent_pkey" PRIMARY KEY ("id")
 );
 
+CREATE TABLE "BackgroundJob" (
+    "id" TEXT NOT NULL,
+    "type" "JobType" NOT NULL,
+    "status" "JobStatus" NOT NULL DEFAULT 'PENDING',
+    "corpusChunkId" TEXT,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "payload" JSONB,
+    "error" TEXT,
+    "runAfter" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "BackgroundJob_pkey" PRIMARY KEY ("id")
+);
+
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "UstadzProfile_userId_key" ON "UstadzProfile"("userId");
 CREATE INDEX "Question_userId_createdAt_idx" ON "Question"("userId", "createdAt");
@@ -160,6 +176,9 @@ CREATE INDEX "AuditLog_action_createdAt_idx" ON "AuditLog"("action", "createdAt"
 CREATE INDEX "AuditLog_entity_entityId_idx" ON "AuditLog"("entity", "entityId");
 CREATE INDEX "AnalyticsEvent_name_createdAt_idx" ON "AnalyticsEvent"("name", "createdAt");
 CREATE INDEX "AnalyticsEvent_userId_idx" ON "AnalyticsEvent"("userId");
+CREATE INDEX "BackgroundJob_status_runAfter_createdAt_idx" ON "BackgroundJob"("status", "runAfter", "createdAt");
+CREATE INDEX "BackgroundJob_type_status_idx" ON "BackgroundJob"("type", "status");
+CREATE INDEX "BackgroundJob_corpusChunkId_idx" ON "BackgroundJob"("corpusChunkId");
 CREATE INDEX "Answer_embedding_idx" ON "Answer" USING ivfflat ("embedding" vector_cosine_ops) WITH (lists = 100);
 CREATE INDEX "CorpusChunk_embedding_idx" ON "CorpusChunk" USING ivfflat ("embedding" vector_cosine_ops) WITH (lists = 100);
 
@@ -177,3 +196,4 @@ ALTER TABLE "SavedAnswer" ADD CONSTRAINT "SavedAnswer_userId_fkey" FOREIGN KEY (
 ALTER TABLE "SavedAnswer" ADD CONSTRAINT "SavedAnswer_answerId_fkey" FOREIGN KEY ("answerId") REFERENCES "Answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "AnalyticsEvent" ADD CONSTRAINT "AnalyticsEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "BackgroundJob" ADD CONSTRAINT "BackgroundJob_corpusChunkId_fkey" FOREIGN KEY ("corpusChunkId") REFERENCES "CorpusChunk"("id") ON DELETE CASCADE ON UPDATE CASCADE;

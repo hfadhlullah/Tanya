@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { JobsModule } from '../jobs/jobs.module';
 import { CorpusController } from './corpus.controller';
 import { CorpusService } from './corpus.service';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, JobsModule],
   controllers: [CorpusController],
   providers: [CorpusService],
 })

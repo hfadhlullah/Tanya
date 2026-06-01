@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { JobsService } from '../jobs/jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CorpusService } from './corpus.service';
 
@@ -15,16 +16,25 @@ describe('CorpusService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
     },
+    $transaction: jest.fn(),
+  };
+  const jobs = {
+    enqueueCorpusEmbedding: jest.fn(),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CorpusService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        CorpusService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: JobsService, useValue: jobs },
+      ],
     }).compile();
 
     service = module.get(CorpusService);
+    prisma.$transaction.mockImplementation((callback) => callback(prisma));
   });
 
   it('creates approved source metadata', async () => {
@@ -65,6 +75,7 @@ describe('CorpusService', () => {
         metadata: undefined,
       },
     });
+    expect(jobs.enqueueCorpusEmbedding).toHaveBeenCalledWith('chunk-1', prisma);
   });
 
   it('rejects chunks for missing sources', async () => {

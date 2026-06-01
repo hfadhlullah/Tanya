@@ -1,14 +1,22 @@
+import { PrismaClient } from '@prisma/client';
+import { JobsService } from './jobs/jobs.service';
+import { WorkerService } from './worker/worker.service';
+
 async function bootstrap() {
-  // Placeholder worker process for ingestion, embeddings, indexing, and analytics jobs.
-  // Concrete queues/jobs will be added with the data model and RAG implementation tasks.
+  const prisma = new PrismaClient();
+  const worker = new WorkerService(new JobsService(prisma));
+
   console.log('Tanya worker started');
 
-  await new Promise<void>((resolve) => {
-    const shutdown = () => resolve();
+  const shutdown = async () => {
+    worker.stop();
+    await prisma.$disconnect();
+  };
 
-    process.once('SIGINT', shutdown);
-    process.once('SIGTERM', shutdown);
-  });
+  process.once('SIGINT', shutdown);
+  process.once('SIGTERM', shutdown);
+
+  await worker.run();
 }
 
 void bootstrap();
