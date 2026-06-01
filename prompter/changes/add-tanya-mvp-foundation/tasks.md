@@ -12,7 +12,7 @@
 - [x] 2.3 Seed initial roles and baseline sensitive-topic rules.
 
 ## 3. Question Answering
-- [ ] 3.1 Implement mobile question submission and question history.
+- [x] 3.1 Implement mobile question submission and question history.
 - [x] 3.2 Run sensitive-topic classification before retrieval or answer drafting.
 - [x] 3.3 Route sensitive questions to ustadz review without returning an AI answer.
 - [ ] 3.4 Return source-bound Tier 1 answers for safe topics with unreviewed labeling.
@@ -26,7 +26,7 @@
 - [ ] 4.5 Implement admin management for ustadz approval, corpus records, sensitive rules, and audits.
 
 ## 5. Corpus And Jobs
-- [ ] 5.1 Implement corpus ingestion for approved Qur'an, hadith, and founding ustadz content.
+- [x] 5.1 Implement corpus ingestion for approved Qur'an, hadith, and founding ustadz content.
 - [ ] 5.2 Add background jobs for chunking, embedding, retrieval indexing, and analytics aggregation.
 - [ ] 5.3 Add file storage handling for credentials, photos, source files, and corpus uploads.
 

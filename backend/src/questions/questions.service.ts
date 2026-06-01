@@ -13,8 +13,8 @@ export class QuestionsService {
     private readonly safetyService: SafetyService,
   ) {}
 
-  async create(dto: CreateQuestionDto) {
-    const userId = dto.userId?.trim();
+  async create(currentUserId: string, dto: CreateQuestionDto) {
+    const userId = currentUserId?.trim();
     const text = dto.text?.trim();
 
     if (!userId) {

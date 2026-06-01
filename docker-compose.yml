@@ -6,6 +6,8 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: ${DATABASE_URL}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      DEMO_ADMIN_KEY: ${DEMO_ADMIN_KEY}
     depends_on:
       postgres:
         condition: service_healthy

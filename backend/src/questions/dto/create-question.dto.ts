@@ -3,11 +3,6 @@ import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validato
 export class CreateQuestionDto {
   @IsString()
   @MinLength(1)
-  @MaxLength(128)
-  userId!: string;
-
-  @IsString()
-  @MinLength(1)
   @MaxLength(2000)
   text!: string;
 

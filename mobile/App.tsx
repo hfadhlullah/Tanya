@@ -1,5 +1,5 @@
-import { WelcomeTemplate } from './src/components/templates/WelcomeTemplate';
+import { AskScreen } from './src/screens/AskScreen';
 
 export default function App() {
-  return <WelcomeTemplate />;
+  return <AskScreen />;
 }

@@ -49,8 +49,7 @@ describe('QuestionsService', () => {
       status: 'RECEIVED',
     });
 
-    const result = await service.create({
-      userId: ' user-1 ',
+    const result = await service.create(' user-1 ', {
       text: ' Bagaimana cara salat? ',
     });
 
@@ -82,8 +81,7 @@ describe('QuestionsService', () => {
       status: 'ROUTED_TO_USTADZ',
     });
 
-    const result = await service.create({
-      userId: 'user-1',
+    const result = await service.create('user-1', {
       text: 'Bagaimana pembagian waris?',
     });
 
@@ -122,8 +120,7 @@ describe('QuestionsService', () => {
     });
     prisma.question.create.mockResolvedValue({ id: 'question-3' });
 
-    await service.create({
-      userId: 'user-1',
+    await service.create('user-1', {
       text: 'Apakah boleh takfir?',
     });
 
@@ -137,7 +134,13 @@ describe('QuestionsService', () => {
   });
 
   it('rejects empty question text', async () => {
-    await expect(service.create({ userId: 'user-1', text: ' ' })).rejects.toBeInstanceOf(
+    await expect(service.create('user-1', { text: ' ' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('rejects missing current user id', async () => {
+    await expect(service.create('', { text: 'Bagaimana cara wudhu?' })).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });
