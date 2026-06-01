@@ -14,6 +14,7 @@ export type Answer = {
   status: string;
   language: string;
   label?: string | null;
+  createdAt?: string | null;
   citations: Citation[];
   verifyingUstadz?: { publicName: string } | null;
 };

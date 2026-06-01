@@ -54,7 +54,16 @@ export function AskScreen({ onResetAuth, onBack }: Props) {
     setAllQuestions(next);
   }
 
+  const guestQuestionCount = allQuestions.filter(
+    (q) => !q.id.startsWith('optimistic-'),
+  ).length;
+  const guestBlocked = isGuest.current && guestQuestionCount >= 1;
+
   async function handleSubmit(text: string) {
+    if (guestBlocked || !text) {
+      setShowLoginGate(true);
+      return;
+    }
     setLoading(true);
 
     // Show question immediately with empty answers (triggers ProcessingIndicator)
@@ -166,6 +175,7 @@ export function AskScreen({ onResetAuth, onBack }: Props) {
   return (
     <AskTemplate
       loading={loading}
+      guestBlocked={guestBlocked}
       questions={currentQuestions}
       sessions={sessions}
       currentSessionId={currentSessionId}

@@ -43,6 +43,7 @@ type AskTemplateProps = {
   onEditQuestion: (question: Question) => void;
   onDeleteSession: (sessionId: string) => void;
   newAnswerIds: Set<string>;
+  guestBlocked?: boolean;
   onBack?: () => void;
 };
 
@@ -66,6 +67,7 @@ export function AskTemplate({
   onEditQuestion,
   onDeleteSession,
   newAnswerIds,
+  guestBlocked,
   onBack,
 }: AskTemplateProps) {
   const listRef = useRef<FlatList>(null);
@@ -165,6 +167,7 @@ export function AskTemplate({
         prefill={prefill}
         onSubmit={onSubmit}
         onPrefillConsumed={onPrefillConsumed}
+        guestBlocked={guestBlocked}
       />
 
       <LoginGateModal
