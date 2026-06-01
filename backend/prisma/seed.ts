@@ -13,6 +13,7 @@ const baselineSensitiveRules = [
 
 async function main() {
   const adminEmail = process.env.SEED_ADMIN_EMAIL;
+  const demoUserId = process.env.SEED_DEMO_USER_ID ?? 'demo-user';
 
   if (adminEmail) {
     await prisma.user.upsert({
@@ -25,6 +26,17 @@ async function main() {
       },
     });
   }
+
+  await prisma.user.upsert({
+    where: { id: demoUserId },
+    update: {},
+    create: {
+      id: demoUserId,
+      email: `${demoUserId}@tanya.local`,
+      displayName: 'Demo User',
+      role: 'USER',
+    },
+  });
 
   for (const rule of baselineSensitiveRules) {
     await prisma.sensitiveRule.upsert({

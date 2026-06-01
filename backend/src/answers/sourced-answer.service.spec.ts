@@ -1,0 +1,99 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { AnswerStatus, QuestionStatus, SourceType } from '@prisma/client';
+import { CorpusRetrievalService } from './corpus-retrieval.service';
+import { SourcedAnswerService } from './sourced-answer.service';
+
+describe('SourcedAnswerService', () => {
+  let service: SourcedAnswerService;
+  const corpusRetrieval = {
+    findSourceMatches: jest.fn(),
+  };
+  const tx = {
+    answer: {
+      create: jest.fn(),
+    },
+    question: {
+      update: jest.fn(),
+    },
+    corpusChunk: {
+      findMany: jest.fn(),
+    },
+  };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SourcedAnswerService,
+        { provide: CorpusRetrievalService, useValue: corpusRetrieval },
+      ],
+    }).compile();
+
+    service = module.get(SourcedAnswerService);
+  });
+
+  it('creates AI pending answer with citations from source matches', async () => {
+    corpusRetrieval.findSourceMatches.mockResolvedValue([
+      {
+        id: 'chunk-1',
+        sourceId: 'source-1',
+        content: 'Dirikanlah salat dan tunaikanlah zakat.',
+        source: {
+          id: 'source-1',
+          type: SourceType.QURAN,
+          title: 'Al-Baqarah',
+          reference: 'QS 2:43',
+        },
+      },
+    ]);
+    tx.answer.create.mockResolvedValue({ id: 'answer-1', status: AnswerStatus.AI_PENDING });
+
+    const result = await service.createTierOneAnswer(
+      { id: 'question-1', text: 'Bagaimana salat?', language: 'id' },
+      tx,
+    );
+
+    expect(tx.answer.create).toHaveBeenCalledWith({
+      data: {
+        questionId: 'question-1',
+        body: expect.stringContaining('belum ditinjau ustadz'),
+        status: AnswerStatus.AI_PENDING,
+        language: 'id',
+        citations: {
+          create: [
+            {
+              sourceId: 'source-1',
+              label: 'QS 2:43',
+              excerpt: 'Dirikanlah salat dan tunaikanlah zakat.',
+            },
+          ],
+        },
+      },
+      include: {
+        citations: { include: { source: true } },
+        verifyingUstadz: true,
+      },
+    });
+    expect(tx.question.update).toHaveBeenCalledWith({
+      where: { id: 'question-1' },
+      data: { status: QuestionStatus.ANSWERED_SOURCE },
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'answer-1',
+        label: "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz",
+        verified: false,
+      }),
+    );
+  });
+
+  it('returns null when no source match exists', async () => {
+    corpusRetrieval.findSourceMatches.mockResolvedValue([]);
+
+    await expect(
+      service.createTierOneAnswer({ id: 'question-1', text: 'Apa?', language: 'id' }, tx),
+    ).resolves.toBeNull();
+    expect(tx.answer.create).not.toHaveBeenCalled();
+  });
+});

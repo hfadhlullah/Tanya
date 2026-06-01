@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { AuditAction, QuestionStatus } from '@prisma/client';
 import { AnswerBankService } from '../answers/answer-bank.service';
+import { SourcedAnswerService } from '../answers/sourced-answer.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SafetyService } from '../safety/safety.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
@@ -10,6 +11,7 @@ export class QuestionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly answerBankService: AnswerBankService,
+    private readonly sourcedAnswerService: SourcedAnswerService,
     private readonly safetyService: SafetyService,
   ) {}
 
@@ -33,7 +35,7 @@ export class QuestionsService {
       ? null
       : await this.answerBankService.findVerifiedMatch(text);
 
-    const question = await this.prisma.$transaction(async (tx) => {
+    const { answer, question } = await this.prisma.$transaction(async (tx) => {
       const createdQuestion = await tx.question.create({
         data: {
           userId,
@@ -59,16 +61,20 @@ export class QuestionsService {
             },
           },
         });
+
+        return { answer: null, question: createdQuestion };
       }
 
-      return createdQuestion;
+      const sourcedAnswer = await this.sourcedAnswerService.createTierOneAnswer(createdQuestion, tx);
+
+      return { answer: sourcedAnswer, question: createdQuestion };
     });
 
     return {
       question,
       verifiedMatch,
       route: classification.isSensitive ? 'ustadz_review' : 'answer_pipeline',
-      answer: null,
+      answer,
     };
   }
 

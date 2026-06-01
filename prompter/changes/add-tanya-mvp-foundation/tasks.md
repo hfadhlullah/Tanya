@@ -15,7 +15,7 @@
 - [x] 3.1 Implement mobile question submission and question history.
 - [x] 3.2 Run sensitive-topic classification before retrieval or answer drafting.
 - [x] 3.3 Route sensitive questions to ustadz review without returning an AI answer.
-- [ ] 3.4 Return source-bound Tier 1 answers for safe topics with unreviewed labeling.
+- [x] 3.4 Return source-bound Tier 1 answers for safe topics with unreviewed labeling.
 - [ ] 3.5 Reuse matching verified answers from the Verified Answer Bank when available.
 
 ## 4. Ustadz And Admin Workflows

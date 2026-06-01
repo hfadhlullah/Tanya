@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnswerBankService } from '../answers/answer-bank.service';
+import { SourcedAnswerService } from '../answers/sourced-answer.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SafetyService } from '../safety/safety.service';
 import { QuestionsService } from './questions.service';
@@ -20,6 +21,9 @@ describe('QuestionsService', () => {
   const answerBank = {
     findVerifiedMatch: jest.fn(),
   };
+  const sourcedAnswer = {
+    createTierOneAnswer: jest.fn(),
+  };
   const safety = {
     classifyQuestion: jest.fn(),
   };
@@ -32,6 +36,7 @@ describe('QuestionsService', () => {
         QuestionsService,
         { provide: PrismaService, useValue: prisma },
         { provide: AnswerBankService, useValue: answerBank },
+        { provide: SourcedAnswerService, useValue: sourcedAnswer },
         { provide: SafetyService, useValue: safety },
       ],
     }).compile();
@@ -45,8 +50,16 @@ describe('QuestionsService', () => {
     answerBank.findVerifiedMatch.mockResolvedValue(null);
     prisma.question.create.mockResolvedValue({
       id: 'question-1',
+      text: 'Bagaimana cara salat?',
+      language: 'id',
       isSensitive: false,
       status: 'RECEIVED',
+    });
+    sourcedAnswer.createTierOneAnswer.mockResolvedValue({
+      id: 'answer-1',
+      status: 'AI_PENDING',
+      label: "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz",
+      verified: false,
     });
 
     const result = await service.create(' user-1 ', {
@@ -65,9 +78,13 @@ describe('QuestionsService', () => {
       },
     });
     expect(answerBank.findVerifiedMatch).toHaveBeenCalledWith('Bagaimana cara salat?');
+    expect(sourcedAnswer.createTierOneAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'question-1' }),
+      prisma,
+    );
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
     expect(result.route).toBe('answer_pipeline');
-    expect(result.answer).toBeNull();
+    expect(result.answer).toEqual(expect.objectContaining({ id: 'answer-1', verified: false }));
   });
 
   it('routes sensitive questions to ustadz review without answer bank lookup', async () => {
@@ -86,6 +103,7 @@ describe('QuestionsService', () => {
     });
 
     expect(answerBank.findVerifiedMatch).not.toHaveBeenCalled();
+    expect(sourcedAnswer.createTierOneAnswer).not.toHaveBeenCalled();
     expect(prisma.question.create).toHaveBeenCalledWith({
       data: {
         userId: 'user-1',
