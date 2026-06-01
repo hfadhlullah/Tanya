@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { AuditAction, QuestionStatus } from '@prisma/client';
-import { AnswerBankService } from '../answers/answer-bank.service';
+import { AuditAction, AnswerStatus, QuestionStatus } from '@prisma/client';
+import { AnswerBankService, type AnswerBankMatch } from '../answers/answer-bank.service';
 import { SourcedAnswerService } from '../answers/sourced-answer.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SafetyService } from '../safety/safety.service';
@@ -28,12 +28,16 @@ export class QuestionsService {
     }
 
     const classification = await this.safetyService.classifyQuestion(text);
-    const status = classification.isSensitive
-      ? QuestionStatus.ROUTED_TO_USTADZ
-      : QuestionStatus.RECEIVED;
-    const verifiedMatch = classification.isSensitive
+
+    const verifiedMatch: AnswerBankMatch | null = classification.isSensitive
       ? null
       : await this.answerBankService.findVerifiedMatch(text);
+
+    const questionStatus = classification.isSensitive
+      ? QuestionStatus.ROUTED_TO_USTADZ
+      : verifiedMatch
+        ? QuestionStatus.ANSWERED_VERIFIED
+        : QuestionStatus.RECEIVED;
 
     const { answer, question } = await this.prisma.$transaction(async (tx) => {
       const createdQuestion = await tx.question.create({
@@ -44,7 +48,7 @@ export class QuestionsService {
           topic: classification.topic,
           isSensitive: classification.isSensitive,
           preferredUstadzId: dto.preferredUstadzId?.trim(),
-          status,
+          status: questionStatus,
         },
       });
 
@@ -55,14 +59,42 @@ export class QuestionsService {
             action: AuditAction.QUESTION_CLASSIFIED,
             entity: 'Question',
             entityId: createdQuestion.id,
-            metadata: {
-              isSensitive: true,
-              topic: classification.topic,
-            },
+            metadata: { isSensitive: true, topic: classification.topic },
           },
         });
 
         return { answer: null, question: createdQuestion };
+      }
+
+      if (verifiedMatch) {
+        const reusedAnswer = await tx.answer.create({
+          data: {
+            questionId: createdQuestion.id,
+            body: verifiedMatch.body,
+            status: AnswerStatus.VERIFIED,
+            language: verifiedMatch.language,
+            verifyingUstadzId: verifiedMatch.verifyingUstadz?.id ?? null,
+            verifiedAt: new Date(),
+            citations: {
+              create: verifiedMatch.citations.map((c) => ({
+                sourceId: c.sourceId,
+                label: c.label,
+                excerpt: c.excerpt,
+              })),
+            },
+          },
+          include: {
+            citations: { include: { source: true } },
+            verifyingUstadz: {
+              select: { id: true, publicName: true, bio: true, specialties: true, madhhab: true },
+            },
+          },
+        });
+
+        return {
+          answer: { ...reusedAnswer, verified: true, reusedFromAnswerId: verifiedMatch.answerId },
+          question: createdQuestion,
+        };
       }
 
       const sourcedAnswer = await this.sourcedAnswerService.createTierOneAnswer(createdQuestion, tx);
@@ -72,8 +104,11 @@ export class QuestionsService {
 
     return {
       question,
-      verifiedMatch,
-      route: classification.isSensitive ? 'ustadz_review' : 'answer_pipeline',
+      route: classification.isSensitive
+        ? 'ustadz_review'
+        : verifiedMatch
+          ? 'verified_answer_bank'
+          : 'answer_pipeline',
       answer,
     };
   }

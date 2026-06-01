@@ -9,6 +9,8 @@ describe('UstadzController', () => {
     getDashboard: jest.fn(),
     approve: jest.fn(),
     reject: jest.fn(),
+    getReviewQueue: jest.fn(),
+    verifyAnswer: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -34,5 +36,19 @@ describe('UstadzController', () => {
     await controller.getDashboard({ id: 'user-1' });
 
     expect(ustadzService.getDashboard).toHaveBeenCalledWith('user-1');
+  });
+
+  it('loads current ustadz review queue', async () => {
+    await controller.getReviewQueue({ id: 'user-1' });
+
+    expect(ustadzService.getReviewQueue).toHaveBeenCalledWith('user-1');
+  });
+
+  it('verifies answer as current ustadz', async () => {
+    await controller.verifyAnswer({ id: 'user-1' }, 'answer-1', { body: 'Edited answer' });
+
+    expect(ustadzService.verifyAnswer).toHaveBeenCalledWith('user-1', 'answer-1', {
+      body: 'Edited answer',
+    });
   });
 });

@@ -3,6 +3,7 @@ import { CurrentUser, type CurrentUser as CurrentUserType } from '../auth/curren
 import { DemoAdminGuard } from '../auth/demo-admin.guard';
 import { DemoAuthGuard } from '../auth/demo-auth.guard';
 import { OnboardUstadzDto } from './dto/onboard-ustadz.dto';
+import { VerifyAnswerDto } from './dto/verify-answer.dto';
 import { UstadzService } from './ustadz.service';
 
 @Controller('ustadz')
@@ -19,6 +20,22 @@ export class UstadzController {
   @UseGuards(DemoAuthGuard)
   getDashboard(@CurrentUser() user: CurrentUserType) {
     return this.ustadzService.getDashboard(user.id);
+  }
+
+  @Get('me/review-queue')
+  @UseGuards(DemoAuthGuard)
+  getReviewQueue(@CurrentUser() user: CurrentUserType) {
+    return this.ustadzService.getReviewQueue(user.id);
+  }
+
+  @Patch('answers/:answerId/verify')
+  @UseGuards(DemoAuthGuard)
+  verifyAnswer(
+    @CurrentUser() user: CurrentUserType,
+    @Param('answerId') answerId: string,
+    @Body() dto: VerifyAnswerDto,
+  ) {
+    return this.ustadzService.verifyAnswer(user.id, answerId, dto);
   }
 
   @Patch(':profileId/approve')

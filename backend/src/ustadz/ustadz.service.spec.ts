@@ -13,6 +13,17 @@ describe('UstadzService', () => {
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    answer: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    question: {
+      update: jest.fn(),
+    },
+    auditLog: {
+      create: jest.fn(),
+    },
     sensitiveRule: {
       deleteMany: jest.fn(),
       createMany: jest.fn(),
@@ -81,5 +92,60 @@ describe('UstadzService', () => {
       where: { id: 'ustadz-1' },
       data: { status: UstadzStatus.REJECTED },
     });
+  });
+
+  it('returns review queue only for approved ustadz', async () => {
+    prisma.ustadzProfile.findUnique.mockResolvedValue({ id: 'ustadz-1', status: UstadzStatus.APPROVED });
+    prisma.answer.findMany.mockResolvedValue([{ id: 'answer-1' }]);
+
+    await expect(service.getReviewQueue('user-1')).resolves.toEqual({
+      profileId: 'ustadz-1',
+      answers: [{ id: 'answer-1' }],
+    });
+    expect(prisma.answer.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: 'AI_PENDING', verifyingUstadzId: null }),
+      }),
+    );
+  });
+
+  it('blocks review queue for pending ustadz', async () => {
+    prisma.ustadzProfile.findUnique.mockResolvedValue({ id: 'ustadz-1', status: UstadzStatus.PENDING });
+
+    await expect(service.getReviewQueue('user-1')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('verifies answer with approved ustadz attribution', async () => {
+    prisma.ustadzProfile.findUnique.mockResolvedValue({ id: 'ustadz-1', status: UstadzStatus.APPROVED });
+    prisma.answer.findUnique.mockResolvedValue({
+      id: 'answer-1',
+      body: 'Draft',
+      status: 'AI_PENDING',
+      questionId: 'question-1',
+    });
+    prisma.answer.update.mockResolvedValue({ id: 'answer-1', status: 'VERIFIED' });
+
+    await expect(service.verifyAnswer('user-1', 'answer-1', { body: 'Edited' })).resolves.toEqual(
+      { id: 'answer-1', status: 'VERIFIED', verified: true },
+    );
+    expect(prisma.answer.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          body: 'Edited',
+          status: 'VERIFIED',
+          verifyingUstadzId: 'ustadz-1',
+          verifiedAt: expect.any(Date),
+        }),
+      }),
+    );
+    expect(prisma.question.update).toHaveBeenCalledWith({
+      where: { id: 'question-1' },
+      data: { status: 'ANSWERED_VERIFIED' },
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: 'ANSWER_EDITED', entity: 'Answer' }),
+      }),
+    );
   });
 });

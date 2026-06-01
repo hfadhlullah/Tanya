@@ -16,14 +16,14 @@
 - [x] 3.2 Run sensitive-topic classification before retrieval or answer drafting.
 - [x] 3.3 Route sensitive questions to ustadz review without returning an AI answer.
 - [x] 3.4 Return source-bound Tier 1 answers for safe topics with unreviewed labeling.
-- [ ] 3.5 Reuse matching verified answers from the Verified Answer Bank when available.
+- [x] 3.5 Reuse matching verified answers from the Verified Answer Bank when available.
 
 ## 4. Ustadz And Admin Workflows
 - [x] 4.1 Implement ustadz onboarding with credentials, specialties, madhhab, and gated topics.
 - [x] 4.2 Lock pending ustadz accounts until admin approval.
-- [ ] 4.3 Implement the ustadz review queue with approve/edit actions.
-- [ ] 4.4 Ensure verified badges and ustadz names appear only after explicit approval.
-- [ ] 4.5 Implement admin management for ustadz approval, corpus records, sensitive rules, and audits.
+- [x] 4.3 Implement the ustadz review queue with approve/edit actions.
+- [x] 4.4 Ensure verified badges and ustadz names appear only after explicit approval.
+- [x] 4.5 Implement admin management for ustadz approval, corpus records, sensitive rules, and audits.
 
 ## 5. Corpus And Jobs
 - [x] 5.1 Implement corpus ingestion for approved Qur'an, hadith, and founding ustadz content.
