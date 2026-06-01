@@ -19,8 +19,8 @@
 - [ ] 3.5 Reuse matching verified answers from the Verified Answer Bank when available.
 
 ## 4. Ustadz And Admin Workflows
-- [ ] 4.1 Implement ustadz onboarding with credentials, specialties, madhhab, and gated topics.
-- [ ] 4.2 Lock pending ustadz accounts until admin approval.
+- [x] 4.1 Implement ustadz onboarding with credentials, specialties, madhhab, and gated topics.
+- [x] 4.2 Lock pending ustadz accounts until admin approval.
 - [ ] 4.3 Implement the ustadz review queue with approve/edit actions.
 - [ ] 4.4 Ensure verified badges and ustadz names appear only after explicit approval.
 - [ ] 4.5 Implement admin management for ustadz approval, corpus records, sensitive rules, and audits.
