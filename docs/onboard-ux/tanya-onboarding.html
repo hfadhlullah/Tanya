@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tanya — Onboarding</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+  :root{
+    --emerald:#0e9f6e;
+    --emerald-d:#057a55;
+    --emerald-soft:#def7ec;
+    --emerald-tint:#f3fbf8;
+    --ink:#0d211a;
+    --muted:#7c9388;
+    --line:#e8efe9;
+    --paper:#fbfdfc;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{background:#e9efeb;font-family:'Plus Jakarta Sans',sans-serif;color:var(--ink);
+    display:flex;flex-direction:column;align-items:center;gap:18px;padding:26px 12px;min-height:100vh;}
+  .toggle{display:flex;gap:6px;background:#fff;padding:5px;border-radius:30px;box-shadow:0 4px 18px rgba(0,0,0,.06);}
+  .toggle button{border:none;background:none;padding:9px 20px;border-radius:24px;font-family:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:.2s;}
+  .toggle button.on{background:var(--emerald);color:#fff;}
+  .stage{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;}
+  .flow{display:none;gap:18px;flex-wrap:wrap;justify-content:center;}
+  .flow.on{display:flex;}
+
+  .phone{width:300px;background:var(--paper);border-radius:30px;overflow:hidden;height:600px;
+    box-shadow:0 18px 50px rgba(13,33,26,.14);border:1px solid #eef3f0;display:flex;flex-direction:column;position:relative;}
+  .scr{flex:1;display:flex;flex-direction:column;padding:30px 26px;}
+  .caption{text-align:center;font-size:11px;color:#9fb0a8;margin-top:8px;letter-spacing:.3px;}
+
+  .logo{font-family:'Fraunces',serif;font-size:22px;font-weight:600;letter-spacing:-.5px;}
+  .logo span{color:var(--emerald);}
+  .spacer{flex:1;}
+
+  .h{font-family:'Fraunces',serif;font-size:25px;line-height:1.25;font-weight:500;letter-spacing:-.4px;margin-bottom:12px;}
+  .h em{color:var(--emerald-d);font-style:normal;}
+  .p{font-size:14px;line-height:1.6;color:var(--muted);}
+
+  .btn{background:var(--emerald);color:#fff;border:none;padding:15px;border-radius:15px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;width:100%;transition:.2s;}
+  .btn:active{transform:scale(.98);}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);}
+  .dots{display:flex;gap:6px;justify-content:center;margin-bottom:20px;}
+  .dots i{width:6px;height:6px;border-radius:50%;background:var(--line);}
+  .dots i.on{background:var(--emerald);width:18px;border-radius:4px;}
+
+  /* trust illustration */
+  .trustcard{background:#fff;border:1px solid var(--line);border-radius:20px;padding:20px;margin:6px 0 22px;box-shadow:0 8px 24px rgba(13,33,26,.05);}
+  .flowrow{display:flex;align-items:center;gap:13px;padding:11px 0;}
+  .flowrow .ic{width:38px;height:38px;border-radius:12px;background:var(--emerald-tint);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .flowrow .ic svg{width:19px;height:19px;stroke:var(--emerald-d);}
+  .flowrow .tx{font-size:13.5px;line-height:1.4;}
+  .flowrow .tx b{font-weight:600;}
+  .flowline{height:14px;width:1px;background:var(--line);margin-left:18px;}
+  .vbadge{display:inline-flex;align-items:center;gap:4px;background:var(--emerald-soft);color:var(--emerald-d);font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;}
+
+  /* choice chips */
+  .choice{background:#fff;border:1.5px solid var(--line);border-radius:15px;padding:16px;margin-bottom:11px;cursor:pointer;transition:.18s;display:flex;align-items:center;gap:13px;}
+  .choice:active,.choice.sel{border-color:var(--emerald);background:var(--emerald-tint);}
+  .choice .e{font-size:22px;}
+  .choice .t{font-size:14.5px;font-weight:600;}
+  .choice .s{font-size:12px;color:var(--muted);margin-top:1px;}
+
+  /* ustadz verify demo */
+  .vq{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;}
+  .vq .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:7px;}
+  .vq .qq{font-size:14px;font-weight:600;line-height:1.4;margin-bottom:10px;}
+  .vq .draft{font-size:12.5px;line-height:1.55;color:#5a6e64;background:var(--emerald-tint);border-radius:11px;padding:11px;}
+  .vbtns{display:flex;gap:9px;}
+  .vbtns button{flex:1;border:none;border-radius:12px;padding:12px;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;}
+  .vbtns .ok{background:var(--emerald);color:#fff;}
+  .vbtns .edit{background:#fff;border:1px solid var(--line);color:var(--ink);}
+  .timer{text-align:center;font-size:11px;color:var(--emerald-d);margin-top:11px;font-weight:600;}
+
+  .cred{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px;margin-bottom:11px;}
+  .cred .ic{width:34px;height:34px;border-radius:10px;background:var(--emerald-tint);display:flex;align-items:center;justify-content:center;font-size:16px;}
+  .cred .t{font-size:13.5px;font-weight:600;}
+  .cred .s{font-size:11.5px;color:var(--muted);}
+  .cred .chk{margin-left:auto;color:var(--emerald);font-size:18px;}
+
+  .tag{display:inline-flex;background:#fff;border:1.5px solid var(--line);border-radius:30px;padding:8px 14px;font-size:13px;font-weight:600;margin:0 7px 9px 0;cursor:pointer;}
+  .tag.sel{background:var(--emerald);color:#fff;border-color:var(--emerald);}
+</style>
+</head>
+<body>
+
+  <div class="toggle">
+    <button class="on" onclick="show('user',this)">User onboarding</button>
+    <button onclick="show('ustadz',this)">Ustadz onboarding</button>
+  </div>
+
+  <!-- ================= USER ================= -->
+  <div class="flow on" id="user">
+
+    <div>
+      <div class="phone"><div class="scr">
+        <div class="logo">Tanya<span>.</span></div>
+        <div class="spacer"></div>
+        <div class="h">Answers you can<br><em>actually trust.</em></div>
+        <div class="p">Ask anything about Islam. Every answer is checked by a real ustadz — and shows you its sources.</div>
+        <div class="spacer"></div>
+        <div class="dots"><i class="on"></i><i></i><i></i></div>
+        <button class="btn">Get started</button>
+      </div></div>
+      <div class="caption">1 · Welcome</div>
+    </div>
+
+    <div>
+      <div class="phone"><div class="scr">
+        <div class="h" style="font-size:21px;">How every answer<br>is <em>verified</em></div>
+        <div class="trustcard">
+          <div class="flowrow"><div class="ic"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg></div><div class="tx">You <b>ask</b> in your own words</div></div>
+          <div class="flowline"></div>
+          <div class="flowrow"><div class="ic"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M4 19V5l8 4 8-4v14l-8-4z"/></svg></div><div class="tx">Drawn from <b>Quran & Sunnah</b></div></div>
+          <div class="flowline"></div>
+          <div class="flowrow"><div class="ic"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div><div class="tx">An <b>ustadz</b> reviews it &nbsp;<span class="vbadge">✓ Verified</span></div></div>
+        </div>
+        <div class="p" style="font-size:13px;">No forums. No guessing. No anonymous fatwa.</div>
+        <div class="spacer"></div>
+        <div class="dots"><i></i><i class="on"></i><i></i></div>
+        <button class="btn">I understand</button>
+      </div></div>
+      <div class="caption">2 · Trust shown first</div>
+    </div>
+
+    <div>
+      <div class="phone"><div class="scr">
+        <div class="h" style="font-size:21px;">Where are you<br>on your <em>path?</em></div>
+        <div class="p" style="margin-bottom:18px;font-size:13px;">So answers meet you where you are. Private — only shapes your replies.</div>
+        <div class="choice sel"><span class="e">🌱</span><div><div class="t">New to Islam</div><div class="s">Starting from the beginning</div></div></div>
+        <div class="choice"><span class="e">🔄</span><div><div class="t">Returning</div><div class="s">Finding my way back</div></div></div>
+        <div class="choice"><span class="e">📿</span><div><div class="t">Practicing</div><div class="s">Want to go deeper</div></div></div>
+        <div class="spacer"></div>
+        <div class="dots"><i></i><i></i><i class="on"></i></div>
+        <button class="btn">Start asking</button>
+      </div></div>
+      <div class="caption">3 · Light personalization</div>
+    </div>
+
+  </div>
+
+  <!-- ================= USTADZ ================= -->
+  <div class="flow" id="ustadz">
+
+    <div>
+      <div class="phone"><div class="scr">
+        <div class="logo">Tanya<span>.</span> <span style="font-size:11px;color:var(--muted);font-family:'Plus Jakarta Sans';">for Ustadz</span></div>
+        <div class="spacer"></div>
+        <div class="h">Reach thousands —<br><em>without recording</em><br>a thing.</div>
+        <div class="p">Approve AI-drafted answers in seconds. Your name, your sources, your reach.</div>
+        <div class="spacer"></div>
+        <div class="dots"><i class="on"></i><i></i><i></i><i></i></div>
+        <button class="btn">Become a founding ustadz</button>
+      </div></div>
+      <div class="caption">1 · The offer</div>
+    </div>
+
+    <div>
+      <div class="phone"><div class="scr">
+        <div class="h" style="font-size:21px;">Confirm your<br><em>credentials</em></div>
+        <div class="p" style="margin-bottom:18px;font-size:13px;">Reviewed before your name goes live.</div>
+        <div class="cred"><div class="ic">🎓</div><div><div class="t">Ijazah / degree</div><div class="s">Al-Azhar, Cairo</div></div><span class="chk">✓</span></div>
+        <div class="cred"><div class="ic">📄</div><div><div class="t">ID verification</div><div class="s">Confirmed</div></div><span class="chk">✓</span></div>
+        <div class="cred"><div class="ic">🔗</div><div><div class="t">Public profile</div><div class="s">350k followers linked</div></div><span class="chk">✓</span></div>
+        <div class="spacer"></div>
+        <div class="dots"><i></i><i class="on"></i><i></i><i></i></div>
+        <button class="btn">Continue</button>
+      </div></div>
+      <div class="caption">2 · Verify credentials</div>
+    </div>
+
+    <div>
+      <div class="phone"><div class="scr">
+        <div class="h" style="font-size:21px;">Set your<br><em>specialties</em></div>
+        <div class="p" style="margin-bottom:16px;font-size:13px;">And the topics only <b>you</b> should answer — never the AI.</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:9px;">I answer on</div>
+        <div>
+          <span class="tag sel">Salah</span><span class="tag sel">Purification</span><span class="tag">Fasting</span><span class="tag sel">New Muslims</span><span class="tag">Finance</span>
+        </div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:14px 0 9px;">Gate to me only 🔒</div>
+        <div>
+          <span class="tag sel">Divorce</span><span class="tag sel">Inheritance</span><span class="tag sel">Sensitive</span>
+        </div>
+        <div class="spacer"></div>
+        <div class="dots"><i></i><i></i><i class="on"></i><i></i></div>
+        <button class="btn">Continue</button>
+      </div></div>
+      <div class="caption">3 · Specialties + what to gate</div>
+    </div>
+
+    <div>
+      <div class="phone"><div class="scr">
+        <div class="h" style="font-size:21px;">Try it once —<br><em>60 seconds</em></div>
+        <div class="vq">
+          <div class="lbl">A user asked</div>
+          <div class="qq">Can I pray if I'm unsure I still have wudhu?</div>
+          <div class="lbl">AI draft from your sources</div>
+          <div class="draft">Yes. If you're certain you had wudhu and only doubt whether it broke, it still counts — certainty isn't lifted by doubt.</div>
+        </div>
+        <div class="vbtns"><button class="edit">Edit</button><button class="ok">Approve ✓</button></div>
+        <div class="timer">⏱ Most reviews take under a minute</div>
+        <div class="spacer"></div>
+        <div class="dots"><i></i><i></i><i></i><i class="on"></i></div>
+        <button class="btn" style="margin-top:14px;">Go to my dashboard</button>
+      </div></div>
+      <div class="caption">4 · Feel the 60-sec flow</div>
+    </div>
+
+  </div>
+
+<script>
+  function show(id,el){
+    document.querySelectorAll('.flow').forEach(f=>f.classList.remove('on'));
+    document.getElementById(id).classList.add('on');
+    document.querySelectorAll('.toggle button').forEach(b=>b.classList.remove('on'));
+    el.classList.add('on');
+  }
+  document.querySelectorAll('.choice').forEach(c=>c.addEventListener('click',()=>{
+    c.parentElement.querySelectorAll('.choice').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');}));
+  document.querySelectorAll('.tag').forEach(t=>t.addEventListener('click',()=>t.classList.toggle('sel')));
+</script>
+</body>
+</html>
