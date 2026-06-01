@@ -165,6 +165,7 @@ model Source {
   reference      String?
   license        String?
   language       String        @default("id")
+  fileUrl        String?
   createdAt      DateTime      @default(now())
   corpusChunks   CorpusChunk[]
   citations      Citation[]

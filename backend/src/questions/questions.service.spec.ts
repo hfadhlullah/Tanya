@@ -162,4 +162,27 @@ describe('QuestionsService', () => {
       BadRequestException,
     );
   });
+
+  it('reuses verified answer from bank and skips sourced answer pipeline', async () => {
+    safety.classifyQuestion.mockResolvedValue({ isSensitive: false });
+    answerBank.findVerifiedMatch.mockResolvedValue({
+      answerId: 'answer-verified-1',
+      score: 0.8,
+      body: 'Salat wajib lima waktu.',
+      language: 'id',
+      citations: [{ sourceId: 'source-1', label: 'QS 2:43', excerpt: null, source: { id: 'source-1', title: 'Al-Baqarah', reference: 'QS 2:43' } }],
+      verifyingUstadz: { id: 'ustadz-1', publicName: 'Ust. Ahmad', bio: null, specialties: [], madhhab: null },
+    });
+    prisma.question.create.mockResolvedValue({ id: 'question-5', text: 'Salat itu apa?', language: 'id', isSensitive: false, status: 'ANSWERED_VERIFIED' });
+    prisma.answer = { ...prisma.answer, create: jest.fn().mockResolvedValue({ id: 'answer-new-1', status: 'VERIFIED', body: 'Salat wajib lima waktu.' }) };
+
+    const result = await service.create('user-1', { text: 'Salat itu apa?' });
+
+    expect(sourcedAnswer.createTierOneAnswer).not.toHaveBeenCalled();
+    expect(result.route).toBe('verified_answer_bank');
+    expect(result.answer).toEqual(expect.objectContaining({ verified: true, reusedFromAnswerId: 'answer-verified-1' }));
+    expect(prisma.question.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'ANSWERED_VERIFIED' }) }),
+    );
+  });
 });

@@ -2,6 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { UstadzStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { UstadzService } from './ustadz.service';
 
 describe('UstadzService', () => {
@@ -36,7 +37,11 @@ describe('UstadzService', () => {
     prisma.$transaction.mockImplementation((callback) => callback(prisma));
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [UstadzService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        UstadzService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: StorageService, useValue: { store: jest.fn(), delete: jest.fn(), getUrl: jest.fn() } },
+      ],
     }).compile();
 
     service = module.get(UstadzService);
@@ -145,6 +150,32 @@ describe('UstadzService', () => {
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ action: 'ANSWER_EDITED', entity: 'Answer' }),
+      }),
+    );
+  });
+
+  it('blocks pending ustadz from verifying answers', async () => {
+    prisma.ustadzProfile.findUnique.mockResolvedValue({ id: 'ustadz-1', status: UstadzStatus.PENDING });
+
+    await expect(service.verifyAnswer('user-1', 'answer-1', {})).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.answer.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('writes ANSWER_APPROVED audit log when body unchanged', async () => {
+    prisma.ustadzProfile.findUnique.mockResolvedValue({ id: 'ustadz-1', status: UstadzStatus.APPROVED });
+    prisma.answer.findUnique.mockResolvedValue({
+      id: 'answer-1',
+      body: 'Original',
+      status: 'AI_PENDING',
+      questionId: 'question-1',
+    });
+    prisma.answer.update.mockResolvedValue({ id: 'answer-1', status: 'VERIFIED' });
+
+    await service.verifyAnswer('user-1', 'answer-1', {});
+
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: 'ANSWER_APPROVED' }),
       }),
     );
   });

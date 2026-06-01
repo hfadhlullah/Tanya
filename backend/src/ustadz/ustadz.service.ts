@@ -1,12 +1,16 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { AnswerStatus, AuditAction, QuestionStatus, SensitiveRuleScope, UserRole, UstadzStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { OnboardUstadzDto } from './dto/onboard-ustadz.dto';
 import { VerifyAnswerDto } from './dto/verify-answer.dto';
 
 @Injectable()
 export class UstadzService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   async onboard(userId: string, dto: OnboardUstadzDto) {
     const cleanUserId = userId.trim();
@@ -170,6 +174,30 @@ export class UstadzService {
       });
 
       return { ...verifiedAnswer, verified: true };
+    });
+  }
+
+  async uploadCredential(
+    userId: string,
+    file: { buffer: Buffer; originalname: string; mimetype: string },
+    label?: string,
+  ) {
+    const profile = await this.prisma.ustadzProfile.findUnique({
+      where: { userId: userId.trim() },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Ustadz profile not found');
+    }
+
+    const stored = await this.storage.store(file.buffer, file.originalname, file.mimetype);
+
+    return this.prisma.credentialFile.create({
+      data: {
+        ustadzId: profile.id,
+        fileUrl: stored.url,
+        label: label?.trim() ?? file.originalname,
+      },
     });
   }
 

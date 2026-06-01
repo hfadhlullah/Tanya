@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JobsService } from '../jobs/jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { CorpusService } from './corpus.service';
 
 describe('CorpusService', () => {
@@ -30,6 +31,7 @@ describe('CorpusService', () => {
         CorpusService,
         { provide: PrismaService, useValue: prisma },
         { provide: JobsService, useValue: jobs },
+        { provide: StorageService, useValue: { store: jest.fn(), delete: jest.fn(), getUrl: jest.fn() } },
       ],
     }).compile();
 

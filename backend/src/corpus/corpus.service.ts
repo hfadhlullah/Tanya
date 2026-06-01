@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { JobsService } from '../jobs/jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateCorpusChunkDto } from './dto/create-corpus-chunk.dto';
 import { CreateSourceDto } from './dto/create-source.dto';
 
@@ -10,6 +11,7 @@ export class CorpusService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jobsService: JobsService,
+    private readonly storage: StorageService,
   ) {}
 
   createSource(dto: CreateSourceDto) {
@@ -54,6 +56,24 @@ export class CorpusService {
       await this.jobsService.enqueueCorpusEmbedding(chunk.id, tx);
 
       return chunk;
+    });
+  }
+
+  async uploadSourceFile(
+    sourceId: string,
+    file: { buffer: Buffer; originalname: string; mimetype: string },
+  ) {
+    const source = await this.prisma.source.findUnique({ where: { id: sourceId }, select: { id: true } });
+
+    if (!source) {
+      throw new NotFoundException('Source not found');
+    }
+
+    const stored = await this.storage.store(file.buffer, file.originalname, file.mimetype);
+
+    return this.prisma.source.update({
+      where: { id: sourceId },
+      data: { fileUrl: stored.url },
     });
   }
 

@@ -28,13 +28,13 @@
 ## 5. Corpus And Jobs
 - [x] 5.1 Implement corpus ingestion for approved Qur'an, hadith, and founding ustadz content.
 - [x] 5.2 Add the background job foundation and placeholder corpus embedding processing; real chunking, retrieval indexing, and analytics aggregation handlers remain follow-up work.
-- [ ] 5.3 Add file storage handling for credentials, photos, source files, and corpus uploads.
+- [x] 5.3 Add file storage handling for credentials, photos, source files, and corpus uploads.
 
 ## 6. Validation
-- [ ] 6.1 Add tests for sensitive-topic routing and no-AI behavior.
-- [ ] 6.2 Add tests for answer attribution, verified badge rules, and citation requirements.
-- [ ] 6.3 Add tests for ustadz pending/approved access behavior.
-- [ ] 6.4 Add tests for answer bank matching and source retrieval.
+- [x] 6.1 Add tests for sensitive-topic routing and no-AI behavior.
+- [x] 6.2 Add tests for answer attribution, verified badge rules, and citation requirements.
+- [x] 6.3 Add tests for ustadz pending/approved access behavior.
+- [x] 6.4 Add tests for answer bank matching and source retrieval.
 - [ ] 6.5 Validate staging deployment through Coolify before production rollout.
 
 ## Post-Implementation
