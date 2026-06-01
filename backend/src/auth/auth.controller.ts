@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
+import { IsArray, IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { CurrentUser, type CurrentUser as CurrentUserType } from './current-user.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -25,6 +25,12 @@ class LoginDto {
   password!: string;
 }
 
+class UpdatePreferencesDto {
+  @IsArray()
+  @IsString({ each: true })
+  preferredUstadzIds!: string[];
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -48,5 +54,17 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: CurrentUserType) {
     return user;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/preferences')
+  getPreferences(@CurrentUser() user: CurrentUserType) {
+    return this.authService.getPreferences(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/preferences')
+  updatePreferences(@CurrentUser() user: CurrentUserType, @Body() dto: UpdatePreferencesDto) {
+    return this.authService.updatePreferences(user.id, dto.preferredUstadzIds);
   }
 }

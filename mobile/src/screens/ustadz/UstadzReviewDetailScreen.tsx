@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -24,14 +23,16 @@ interface Props {
 export function UstadzReviewDetailScreen({ answer, onDone, onBack }: Props) {
   const [editedBody, setEditedBody] = useState(answer.body);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   async function handleVerify() {
     setLoading(true);
     try {
       const changed = editedBody.trim() !== answer.body.trim();
       await verifyAnswer(answer.id, changed ? editedBody.trim() : undefined);
-      Alert.alert('Jawaban diverifikasi.', '', [{ text: 'OK', onPress: onDone }]);
+      setSuccess(true);
     } catch (e: any) {
+      const { Alert } = require('react-native');
       Alert.alert('Gagal', e.message);
     } finally {
       setLoading(false);
@@ -87,7 +88,15 @@ export function UstadzReviewDetailScreen({ answer, onDone, onBack }: Props) {
           </View>
         )}
 
-        {loading ? (
+        {success ? (
+          <View style={styles.successBanner}>
+            <BrandText variant="body" style={styles.successTitle}>✓ Jawaban berhasil diverifikasi</BrandText>
+            <BrandText variant="caption" style={styles.successSub}>
+              Jawaban ini akan dikirim ke pengguna berikutnya yang bertanya hal serupa.
+            </BrandText>
+            <PrimaryButton label="Kembali ke Antrian" onPress={onDone} style={styles.btn} />
+          </View>
+        ) : loading ? (
           <ActivityIndicator color={colors.emerald} style={styles.btn} />
         ) : (
           <PrimaryButton label="Verifikasi & Publikasikan" onPress={handleVerify} style={styles.btn} />
@@ -139,4 +148,13 @@ const styles = StyleSheet.create({
   citationLabel: { fontWeight: '700', color: colors.ink },
   citationExcerpt: { color: colors.muted },
   btn: { marginTop: 4 },
+  successBanner: {
+    backgroundColor: colors.emeraldSoft,
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 16,
+    gap: 8,
+  },
+  successTitle: { fontWeight: '700', color: colors.emerald },
+  successSub: { color: colors.muted },
 });

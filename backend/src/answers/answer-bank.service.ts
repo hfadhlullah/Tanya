@@ -26,18 +26,20 @@ export type AnswerBankMatch = {
 export class AnswerBankService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findVerifiedMatch(questionText: string): Promise<AnswerBankMatch | null> {
+  async findVerifiedMatch(questionText: string, preferredUstadzIds?: string[]): Promise<AnswerBankMatch | null> {
     const terms = this.extractTerms(questionText);
     if (terms.length === 0) return null;
 
     const answers = await this.prisma.answer.findMany({
       where: {
         status: AnswerStatus.VERIFIED,
-        OR: terms.map((term) => ({
-          body: { contains: term, mode: 'insensitive' as const },
-        })),
+        isSensitive: false,
+        OR: [
+          ...terms.map((term) => ({ body: { contains: term, mode: 'insensitive' as const } })),
+          ...terms.map((term) => ({ question: { text: { contains: term, mode: 'insensitive' as const } } })),
+        ],
       },
-      take: 5,
+      take: 10,
       orderBy: { verifiedAt: 'desc' },
       include: {
         citations: { include: { source: true } },
@@ -56,23 +58,42 @@ export class AnswerBankService {
       return { answer, score };
     });
 
-    scored.sort((a, b) => b.score - a.score);
-    const best = scored[0];
+    const qualifying = scored.filter((s) => s.score >= 0.5);
+    if (qualifying.length === 0) return null;
 
-    if (best.score < 0.5) return null;
+    // Prefer answers from user's preferred ustadzs
+    if (preferredUstadzIds?.length) {
+      const preferred = qualifying.filter(
+        (s) => s.answer.verifyingUstadzId && preferredUstadzIds.includes(s.answer.verifyingUstadzId),
+      );
+      if (preferred.length > 0) {
+        preferred.sort((a, b) => b.score - a.score);
+        const best = preferred[0];
+        return this.toMatch(best.answer);
+      }
+    }
 
+    qualifying.sort((a, b) => b.score - a.score);
+    return this.toMatch(qualifying[0].answer);
+  }
+
+  private toMatch(answer: {
+    id: string; body: string; language: string; verifyingUstadzId?: string | null;
+    citations: Array<{ sourceId: string; label: string; excerpt: string | null; source: { id: string; title: string; reference: string | null } }>;
+    verifyingUstadz: { id: string; publicName: string; bio: string | null; specialties: string[]; madhhab: string | null } | null;
+  }): AnswerBankMatch {
     return {
-      answerId: best.answer.id,
-      score: best.score,
-      body: best.answer.body,
-      language: best.answer.language,
-      citations: best.answer.citations.map((c) => ({
+      answerId: answer.id,
+      score: 1,
+      body: answer.body,
+      language: answer.language,
+      citations: answer.citations.map((c) => ({
         sourceId: c.sourceId,
         label: c.label,
         excerpt: c.excerpt,
         source: c.source,
       })),
-      verifyingUstadz: best.answer.verifyingUstadz,
+      verifyingUstadz: answer.verifyingUstadz,
     };
   }
 

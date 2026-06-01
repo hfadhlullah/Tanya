@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   Modal,
@@ -17,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const RENAME_KEY = '@tanya_session_titles';
 import { deleteSession as apiDeleteSession } from '../../api/questions';
 import { type AuthUser } from '../../api/auth';
+import { getMyPreferences, updateMyPreferences, listPublicUstadz, type PublicUstadz } from '../../api/preferences';
 import { type ChatSession } from '../../screens/AskScreen';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.82;
@@ -51,6 +53,10 @@ export function SidebarDrawer({
 }: Props) {
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const [profileOpen, setProfileOpen] = useState(false);
+  const [ustadzOpen, setUstadzOpen] = useState(false);
+  const [ustadzList, setUstadzList] = useState<PublicUstadz[]>([]);
+  const [preferredIds, setPreferredIds] = useState<string[]>([]);
+  const [prefLoading, setPrefLoading] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [titles, setTitles] = useState<Record<string, string>>({});
@@ -112,7 +118,31 @@ export function SidebarDrawer({
       setRenamingId(null);
       setConfirmDeleteId(null);
     }
+    if (visible && user && !user.isGuest) {
+      loadPreferences();
+    }
   }, [visible]);
+
+  async function loadPreferences() {
+    setPrefLoading(true);
+    try {
+      const [prefs, list] = await Promise.all([getMyPreferences(), listPublicUstadz()]);
+      setPreferredIds(prefs.preferredUstadzIds);
+      setUstadzList(list);
+    } catch {
+      // silently ignore
+    } finally {
+      setPrefLoading(false);
+    }
+  }
+
+  async function toggleUstadz(id: string) {
+    const next = preferredIds.includes(id)
+      ? preferredIds.filter((x) => x !== id)
+      : [...preferredIds, id];
+    setPreferredIds(next);
+    updateMyPreferences(next).catch(() => {});
+  }
 
   function getInitials(u: AuthUser) {
     if (u.displayName) return u.displayName.slice(0, 2).toUpperCase();
@@ -303,6 +333,50 @@ export function SidebarDrawer({
                     </View>
                   </View>
                   <View style={s.popoverDivider} />
+                  {/* Ustadz preference picker */}
+                  <TouchableOpacity
+                    style={s.popoverItem}
+                    activeOpacity={0.7}
+                    onPress={() => setUstadzOpen((v) => !v)}
+                  >
+                    <Ionicons name="person-outline" size={16} color={d.muted} />
+                    <Text style={s.popoverItemText}>Pilih Ustadz</Text>
+                    <Ionicons name={ustadzOpen ? 'chevron-up' : 'chevron-down'} size={13} color={d.muted} />
+                  </TouchableOpacity>
+                  {ustadzOpen && (
+                    <View style={s.ustadzList}>
+                      {prefLoading ? (
+                        <ActivityIndicator size="small" color={d.accent} style={{ margin: 8 }} />
+                      ) : ustadzList.length === 0 ? (
+                        <Text style={s.ustadzEmpty}>Belum ada ustadz tersedia.</Text>
+                      ) : (
+                        ustadzList.map((u) => {
+                          const selected = preferredIds.includes(u.id);
+                          return (
+                            <TouchableOpacity
+                              key={u.id}
+                              style={s.ustadzRow}
+                              activeOpacity={0.7}
+                              onPress={() => toggleUstadz(u.id)}
+                            >
+                              <View style={s.ustadzInfo}>
+                                <Text style={s.ustadzName}>{u.publicName}</Text>
+                                {u.specialties.length > 0 && (
+                                  <Text style={s.ustadzSpec} numberOfLines={1}>{u.specialties.join(', ')}</Text>
+                                )}
+                              </View>
+                              <Ionicons
+                                name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+                                size={20}
+                                color={selected ? d.accent : d.muted}
+                              />
+                            </TouchableOpacity>
+                          );
+                        })
+                      )}
+                    </View>
+                  )}
+                  <View style={s.popoverDivider} />
                   <TouchableOpacity
                     style={s.popoverItem}
                     activeOpacity={0.7}
@@ -470,4 +544,16 @@ const s = StyleSheet.create({
     paddingVertical: 13, paddingHorizontal: 14,
   },
   popoverItemText: { fontSize: 14, color: d.text, fontWeight: '500' },
+
+  // ustadz picker
+  ustadzList: { paddingHorizontal: 14, paddingBottom: 8 },
+  ustadzEmpty: { fontSize: 12, color: d.muted, paddingVertical: 8 },
+  ustadzRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: d.border,
+  },
+  ustadzInfo: { flex: 1 },
+  ustadzName: { fontSize: 13, fontWeight: '600', color: d.text },
+  ustadzSpec: { fontSize: 11, color: d.muted, marginTop: 2 },
 });

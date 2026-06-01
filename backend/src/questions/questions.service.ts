@@ -32,9 +32,11 @@ export class QuestionsService {
 
     const classification = await this.safetyService.classifyQuestion(text);
 
+    const userPrefs = await this.prisma.user.findUnique({ where: { id: userId }, select: { preferredUstadzIds: true } });
+
     const verifiedMatch: AnswerBankMatch | null = classification.isSensitive
       ? null
-      : await this.answerBankService.findVerifiedMatch(text);
+      : await this.answerBankService.findVerifiedMatch(text, userPrefs?.preferredUstadzIds ?? []);
 
     const questionStatus = classification.isSensitive
       ? QuestionStatus.ANSWERED_VERIFIED

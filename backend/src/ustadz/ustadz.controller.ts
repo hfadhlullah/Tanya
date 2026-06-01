@@ -18,6 +18,12 @@ export class UstadzController {
     return this.ustadzService.onboard(user.id, dto);
   }
 
+  @Get('public')
+  @UseGuards(JwtAuthGuard)
+  listPublic() {
+    return this.ustadzService.listPublicUstadz();
+  }
+
   @Get('me/profile')
   @UseGuards(JwtAuthGuard)
   getProfile(@CurrentUser() user: CurrentUserType) {

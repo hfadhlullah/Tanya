@@ -68,6 +68,14 @@ export class UstadzService {
     return { profile, locked: true };
   }
 
+  listPublicUstadz() {
+    return this.prisma.ustadzProfile.findMany({
+      where: { status: UstadzStatus.APPROVED },
+      select: { id: true, publicName: true, specialties: true, madhhab: true, bio: true },
+      orderBy: { publicName: 'asc' },
+    });
+  }
+
   async getProfile(userId: string) {
     return this.prisma.ustadzProfile.findUnique({
       where: { userId: userId.trim() },

@@ -50,6 +50,16 @@ export class AuthService {
     return this.prisma.user.findUnique({ where: { id: payload.sub } });
   }
 
+  async getPreferences(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { preferredUstadzIds: true } });
+    return { preferredUstadzIds: user?.preferredUstadzIds ?? [] };
+  }
+
+  async updatePreferences(userId: string, preferredUstadzIds: string[]) {
+    await this.prisma.user.update({ where: { id: userId }, data: { preferredUstadzIds } });
+    return { preferredUstadzIds };
+  }
+
   private sign(user: { id: string; email: string; role: string }) {
     const payload: JwtPayload = { sub: user.id, email: user.email, role: user.role };
     return this.jwt.sign(payload);
