@@ -2,6 +2,20 @@ import { authHeaders, getStoredToken } from './auth';
 
 const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 
+export type Citation = {
+  id: string;
+  label: string;
+  excerpt: string;
+};
+
+export type Answer = {
+  id: string;
+  body: string;
+  status: string;
+  language: string;
+  citations: Citation[];
+};
+
 export type Question = {
   id: string;
   text: string;
@@ -11,12 +25,13 @@ export type Question = {
   isSensitive: boolean;
   status: string;
   createdAt: string;
+  answers: Answer[];
 };
 
 export type CreateQuestionResponse = {
   question: Question;
-  route: 'answer_pipeline' | 'ustadz_review';
-  answer: null;
+  route: 'answer_pipeline' | 'verified_answer_bank' | 'ustadz_review';
+  answer: Answer | null;
 };
 
 async function headers() {

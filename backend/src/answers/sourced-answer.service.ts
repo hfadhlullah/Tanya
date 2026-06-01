@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AnswerStatus, QuestionStatus } from '@prisma/client';
 import { CorpusRetrievalService, type CorpusTx } from './corpus-retrieval.service';
+import { LlmClientService } from './llm-client.service';
 
 type AnswerTx = CorpusTx & {
   answer: {
@@ -13,19 +14,25 @@ type AnswerTx = CorpusTx & {
 
 @Injectable()
 export class SourcedAnswerService {
-  constructor(private readonly corpusRetrievalService: CorpusRetrievalService) {}
+  constructor(
+    private readonly corpusRetrievalService: CorpusRetrievalService,
+    private readonly llm: LlmClientService,
+  ) {}
 
   async createTierOneAnswer(question: { id: string; text: string; language: string }, tx: AnswerTx) {
-    const matches = await this.corpusRetrievalService.findSourceMatches(question.text, tx);
+    const embedding = await this.corpusRetrievalService.embedQuestion(question.text);
+    const matches = await this.corpusRetrievalService.findSourceMatches(question.text, embedding, tx);
 
     if (matches.length === 0) {
       return null;
     }
 
+    const body = await this.synthesizeAnswer(question.text, matches);
+
     const answer = await tx.answer.create({
       data: {
         questionId: question.id,
-        body: this.composeAnswer(matches),
+        body,
         status: AnswerStatus.AI_PENDING,
         language: question.language,
         citations: {
@@ -54,12 +61,34 @@ export class SourcedAnswerService {
     };
   }
 
-  private composeAnswer(matches: Awaited<ReturnType<CorpusRetrievalService['findSourceMatches']>>) {
-    const excerpts = matches.map((match) => `- ${match.content}`).join('\n');
+  private async synthesizeAnswer(
+    questionText: string,
+    matches: Awaited<ReturnType<CorpusRetrievalService['findSourceMatches']>>,
+  ): Promise<string> {
+    const sources = matches
+      .map((m, i) => `[${i + 1}] ${m.content.slice(0, 500)}`)
+      .join('\n\n');
 
-    return [
-      'Berikut sumber awal yang relevan. Jawaban ini belum ditinjau ustadz, jadi belum menjadi fatwa atau arahan personal.',
-      excerpts,
-    ].join('\n\n');
+    try {
+      return await this.llm.complete([
+        {
+          role: 'system',
+          content:
+            'Kamu adalah asisten yang menjawab pertanyaan Islam berdasarkan sumber Al-Qur\'an dan Sunnah. ' +
+            'Jawaban harus ringkas, jelas, dan sesuai dengan sumber yang diberikan. ' +
+            'Jangan berfatwa secara personal. Sebutkan nomor sumber yang kamu gunakan.',
+        },
+        {
+          role: 'user',
+          content: `Pertanyaan: ${questionText}\n\nSumber relevan:\n${sources}\n\nBerikan jawaban berdasarkan sumber di atas.`,
+        },
+      ]);
+    } catch {
+      // fallback to raw excerpts if LLM call fails
+      return [
+        'Berikut sumber awal yang relevan. Jawaban ini belum ditinjau ustadz.',
+        matches.map((m) => `- ${m.content}`).join('\n'),
+      ].join('\n\n');
+    }
   }
 }

@@ -45,8 +45,12 @@ export function AskScreen({ onResetAuth }: Props) {
   async function handleSubmit(text: string) {
     setLoading(true);
     try {
-      await createQuestion({ text, sessionId: currentSessionId });
-      await refreshQuestions();
+      const result = await createQuestion({ text, sessionId: currentSessionId });
+      const newQuestion: Question = {
+        ...result.question,
+        answers: result.answer ? [result.answer] : [],
+      };
+      setAllQuestions((prev) => [newQuestion, ...prev]);
       if (isGuest.current) {
         setShowLoginGate(true);
       }

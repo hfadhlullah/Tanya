@@ -54,3 +54,4 @@ Thumbs.db
 postgres_data/
 tmp/
 temp/
+.preview/

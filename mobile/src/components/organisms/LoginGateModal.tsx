@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -54,7 +55,10 @@ export function LoginGateModal({ visible, onSuccess, onDismiss }: Props) {
             {/* Handle */}
             <View style={s.handle} />
 
-            <Text style={s.eyebrow}>✓ Pertanyaanmu sudah diterima</Text>
+            <View style={s.eyebrowRow}>
+              <Ionicons name="checkmark-circle" size={14} color={colors.emeraldDark} />
+              <Text style={s.eyebrow}>Pertanyaanmu sudah diterima</Text>
+            </View>
             <Text style={s.h}>
               Simpan riwayat &{'\n'}
               <Text style={s.hAccent}>tanya lebih banyak.</Text>
@@ -154,6 +158,11 @@ const s = StyleSheet.create({
     backgroundColor: colors.line,
     alignSelf: 'center',
     marginBottom: 8,
+  },
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   eyebrow: {
     fontSize: 12,

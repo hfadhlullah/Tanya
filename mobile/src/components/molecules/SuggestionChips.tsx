@@ -1,11 +1,24 @@
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../theme/ui-reference';
 
 const SUGGESTIONS = [
-  { icon: '🕌', label: 'Salat yang sering ketinggalan', fill: 'Bagaimana cara mengganti salat yang sering ketinggalan?' },
-  { icon: '📿', label: 'Hukum puasa sunnah', fill: 'Apa saja aturan dan hukum puasa sunnah?' },
-  { icon: '📖', label: 'Dalil soal sedekah', fill: 'Apa dalil tentang keutamaan sedekah?' },
-];
+  {
+    icon: 'time-outline',
+    label: 'Salat yang sering ketinggalan',
+    fill: 'Bagaimana cara mengganti salat yang sering ketinggalan?',
+  },
+  {
+    icon: 'calendar-outline',
+    label: 'Hukum puasa sunnah',
+    fill: 'Apa saja aturan dan hukum puasa sunnah?',
+  },
+  {
+    icon: 'book-outline',
+    label: 'Dalil soal sedekah',
+    fill: 'Apa dalil tentang keutamaan sedekah?',
+  },
+] as const;
 
 interface Props {
   onSelect: (text: string) => void;
@@ -17,7 +30,9 @@ export function SuggestionChips({ onSelect }: Props) {
       <Text style={s.label}>Mulai dari sini</Text>
       {SUGGESTIONS.map((item) => (
         <TouchableOpacity key={item.label} style={s.chip} onPress={() => onSelect(item.fill)} activeOpacity={0.7}>
-          <Text style={s.icon}>{item.icon}</Text>
+          <View style={s.icon}>
+            <Ionicons name={item.icon} size={18} color={colors.emeraldDark} />
+          </View>
           <Text style={s.text}>{item.label}</Text>
         </TouchableOpacity>
       ))}
@@ -51,9 +66,8 @@ const s = StyleSheet.create({
     borderColor: colors.line,
   },
   icon: {
-    fontSize: 20,
     width: 28,
-    textAlign: 'center',
+    alignItems: 'center',
   },
   text: {
     fontSize: 15,

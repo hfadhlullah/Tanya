@@ -1,4 +1,4 @@
-import { JobType } from '@prisma/client';
+import { JobType, PrismaClient } from '@prisma/client';
 import { JobsService } from '../jobs/jobs.service';
 
 const idleDelayMs = 1000;
@@ -6,7 +6,11 @@ const idleDelayMs = 1000;
 export class WorkerService {
   private shouldStop = false;
 
-  constructor(private readonly jobsService: JobsService) {}
+  constructor(
+    private readonly jobsService: JobsService,
+    private readonly prisma: PrismaClient,
+    private readonly embedFn: (text: string) => Promise<number[]>,
+  ) {}
 
   stop() {
     this.shouldStop = true;
@@ -32,7 +36,7 @@ export class WorkerService {
     try {
       switch (job.type) {
         case JobType.CORPUS_EMBEDDING:
-          // Placeholder: real embedding generation and pgvector writes land with RAG integration.
+          await this.handleCorpusEmbedding(job);
           await this.jobsService.completeJob(job.id);
           return true;
         default:
@@ -45,6 +49,33 @@ export class WorkerService {
       );
       return true;
     }
+  }
+
+  private async handleCorpusEmbedding(job: { payload: unknown }) {
+    const payload = job.payload as { corpusChunkId?: string };
+    const chunkId = payload?.corpusChunkId;
+
+    if (!chunkId) {
+      throw new Error('Missing corpusChunkId in job payload');
+    }
+
+    const chunk = await this.prisma.corpusChunk.findUnique({
+      where: { id: chunkId },
+      select: { id: true, content: true },
+    });
+
+    if (!chunk) {
+      throw new Error(`CorpusChunk ${chunkId} not found`);
+    }
+
+    const embedding = await this.embedFn(chunk.content);
+    const vectorLiteral = `[${embedding.join(',')}]`;
+
+    await this.prisma.$executeRaw`
+      UPDATE "CorpusChunk"
+      SET embedding = ${vectorLiteral}::vector
+      WHERE id = ${chunk.id}
+    `;
   }
 
   private sleep(ms: number) {

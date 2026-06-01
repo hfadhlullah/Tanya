@@ -10,6 +10,10 @@ services:
       DEMO_ADMIN_KEY: ${DEMO_ADMIN_KEY}
       STORAGE_LOCAL_PATH: /app/uploads
       STORAGE_BASE_URL: ${STORAGE_BASE_URL}
+      REQUESTY_API_KEY: ${REQUESTY_API_KEY}
+      REQUESTY_BASE_URL: ${REQUESTY_BASE_URL:-https://router.requesty.ai/v1}
+      REQUESTY_EMBEDDING_MODEL: ${REQUESTY_EMBEDDING_MODEL:-openai/text-embedding-3-small}
+      REQUESTY_CHAT_MODEL: ${REQUESTY_CHAT_MODEL:-gpt-4o-mini}
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,6 +49,9 @@ services:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL}
       WORKER_MODE: "true"
+      REQUESTY_API_KEY: ${REQUESTY_API_KEY}
+      REQUESTY_BASE_URL: ${REQUESTY_BASE_URL:-https://router.requesty.ai/v1}
+      REQUESTY_EMBEDDING_MODEL: ${REQUESTY_EMBEDDING_MODEL:-openai/text-embedding-3-small}
     depends_on:
       postgres:
         condition: service_healthy

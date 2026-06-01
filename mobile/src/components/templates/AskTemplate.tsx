@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { type AuthUser } from '../../api/auth';
 import { type Question } from '../../api/questions';
@@ -76,7 +77,7 @@ export function AskTemplate({
       {/* Top bar */}
       <View style={s.topBar}>
         <TouchableOpacity style={s.iconBtn} onPress={() => setSidebarOpen(true)} activeOpacity={0.7}>
-          <Text style={s.menuIcon}>≡</Text>
+          <Ionicons name="menu-outline" size={24} color={colors.ink} />
         </TouchableOpacity>
         <Text style={s.logo}>
           Tanya<Text style={s.logoAccent}>.</Text>
@@ -132,17 +133,37 @@ export function AskTemplate({
 }
 
 function QuestionBubble({ question }: { question: Question }) {
+  const answer = question.answers?.[0];
   return (
-    <View style={s.bubbleRow}>
-      <View style={s.bubble}>
-        <Text style={s.bubbleText}>{question.text}</Text>
-        <View style={s.bubbleMeta}>
-          <Text style={[s.statusDot, question.isSensitive ? s.dotSensitive : s.dotSafe]}>●</Text>
-          <Text style={s.statusText}>
-            {question.isSensitive ? 'Menunggu tinjauan ustadz' : 'Masuk alur jawaban'}
-          </Text>
+    <View style={s.turn}>
+      {/* User question — right aligned */}
+      <View style={s.bubbleRow}>
+        <View style={s.bubble}>
+          <Text style={s.bubbleText}>{question.text}</Text>
+          <View style={s.bubbleMeta}>
+            <Text style={[s.statusDot, question.isSensitive ? s.dotSensitive : s.dotSafe]}>●</Text>
+            <Text style={s.statusText}>
+              {question.isSensitive ? 'Menunggu tinjauan ustadz' : 'Masuk alur jawaban'}
+            </Text>
+          </View>
         </View>
       </View>
+
+      {/* Answer — left aligned */}
+      {answer ? (
+        <View style={s.answerRow}>
+          <View style={s.answerBubble}>
+            <Text style={s.answerText}>{answer.body}</Text>
+            {answer.citations?.length > 0 && (
+              <View style={s.citationsWrap}>
+                {answer.citations.map((c) => (
+                  <Text key={c.id} style={s.citationText}>· {c.label}</Text>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -167,11 +188,6 @@ const s = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  menuIcon: {
-    fontSize: 22,
-    color: colors.ink,
-    fontWeight: '600',
   },
   logo: {
     fontFamily: 'serif',
@@ -230,8 +246,38 @@ const s = StyleSheet.create({
   },
 
   // bubbles
+  turn: {
+    gap: 6,
+  },
   bubbleRow: {
     alignItems: 'flex-end',
+  },
+  answerRow: {
+    alignItems: 'flex-start',
+  },
+  answerBubble: {
+    backgroundColor: colors.emerald + '18',
+    borderRadius: 20,
+    borderBottomLeftRadius: 4,
+    padding: 14,
+    maxWidth: '85%',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.emerald + '40',
+  },
+  answerText: {
+    fontSize: 15,
+    color: colors.ink,
+    lineHeight: 22,
+  },
+  citationsWrap: {
+    gap: 2,
+    marginTop: 4,
+  },
+  citationText: {
+    fontSize: 11,
+    color: colors.muted,
+    lineHeight: 16,
   },
   bubble: {
     backgroundColor: colors.white,

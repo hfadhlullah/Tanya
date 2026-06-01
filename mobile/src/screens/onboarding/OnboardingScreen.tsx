@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -10,15 +11,16 @@ import {
 import { colors } from '../../theme/ui-reference';
 
 type Level = 'new' | 'returning' | 'practicing';
+type FlowIcon = 'search' | 'book' | 'check';
 
 interface Props {
   onComplete: (level: Level) => void;
 }
 
-const CHOICES: { emoji: string; label: string; sub: string; value: Level }[] = [
-  { emoji: '🌱', label: 'Baru kenal Islam', sub: 'Mulai dari nol, tidak apa-apa', value: 'new' },
-  { emoji: '🔄', label: 'Lagi kembali lagi', sub: 'Pelan-pelan menata', value: 'returning' },
-  { emoji: '📿', label: 'Sudah menjalankan', sub: 'Mau makin dalam', value: 'practicing' },
+const CHOICES: { icon: 'leaf-outline' | 'refresh-outline' | 'flower-outline'; label: string; sub: string; value: Level }[] = [
+  { icon: 'leaf-outline', label: 'Baru kenal Islam', sub: 'Mulai dari nol, tidak apa-apa', value: 'new' },
+  { icon: 'refresh-outline', label: 'Lagi kembali lagi', sub: 'Pelan-pelan menata', value: 'returning' },
+  { icon: 'flower-outline', label: 'Sudah menjalankan', sub: 'Mau makin dalam', value: 'practicing' },
 ];
 
 export function OnboardingScreen({ onComplete }: Props) {
@@ -95,7 +97,7 @@ function Step1() {
           label=""
           bold="Ustadz"
           tail=" memeriksa dulu  "
-          badge="✓ Terverifikasi"
+          badge="Terverifikasi"
         />
       </View>
       <Text style={[s.p, { fontSize: 13 }]}>
@@ -112,17 +114,21 @@ function FlowRow({
   tail,
   badge,
 }: {
-  icon: 'search' | 'book' | 'check';
+  icon: FlowIcon;
   label: string;
   bold: string;
   tail: string;
   badge?: string;
 }) {
-  const icons: Record<string, string> = { search: '🔍', book: '📖', check: '✅' };
+  const icons: Record<FlowIcon, 'search-outline' | 'book-outline' | 'checkmark-circle'> = {
+    search: 'search-outline',
+    book: 'book-outline',
+    check: 'checkmark-circle',
+  };
   return (
     <View style={s.flowRow}>
       <View style={s.flowIcon}>
-        <Text style={{ fontSize: 16 }}>{icons[icon]}</Text>
+        <Ionicons name={icons[icon]} size={18} color={colors.emeraldDark} />
       </View>
       <Text style={s.flowText}>
         {label}
@@ -156,7 +162,9 @@ function Step2({
           onPress={() => onSelect(c.value)}
           activeOpacity={0.85}
         >
-          <Text style={{ fontSize: 22 }}>{c.emoji}</Text>
+          <View style={s.choiceIcon}>
+            <Ionicons name={c.icon} size={20} color={colors.emeraldDark} />
+          </View>
           <View>
             <Text style={s.choiceLabel}>{c.label}</Text>
             <Text style={s.choiceSub}>{c.sub}</Text>
@@ -280,6 +288,10 @@ const s = StyleSheet.create({
   choiceSelected: {
     borderColor: colors.emerald,
     backgroundColor: colors.emeraldTint,
+  },
+  choiceIcon: {
+    width: 28,
+    alignItems: 'center',
   },
   choiceLabel: {
     fontSize: 14.5,

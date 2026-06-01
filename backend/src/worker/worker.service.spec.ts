@@ -13,13 +13,26 @@ describe('WorkerService', () => {
     jest.clearAllMocks();
   });
 
-  it('processes corpus embedding placeholder jobs', async () => {
+  const mockPrisma = {
+    corpusChunk: { findUnique: jest.fn() },
+    $executeRaw: jest.fn(),
+  } as unknown as import('@prisma/client').PrismaClient;
+
+  const mockEmbed = jest.fn().mockResolvedValue(new Array(1536).fill(0));
+
+  it('processes corpus embedding jobs', async () => {
     jobs.claimNextJob.mockResolvedValue({
       id: 'job-1',
       type: JobType.CORPUS_EMBEDDING,
+      payload: { corpusChunkId: 'chunk-1' },
     } as Awaited<ReturnType<JobsService['claimNextJob']>>);
 
-    const worker = new WorkerService(jobs);
+    (mockPrisma.corpusChunk.findUnique as jest.Mock).mockResolvedValue({
+      id: 'chunk-1',
+      content: 'test content',
+    });
+
+    const worker = new WorkerService(jobs, mockPrisma, mockEmbed);
 
     await expect(worker.processNextJob()).resolves.toBe(true);
     expect(jobs.completeJob).toHaveBeenCalledWith('job-1');
@@ -29,7 +42,7 @@ describe('WorkerService', () => {
   it('returns false when no job is available', async () => {
     jobs.claimNextJob.mockResolvedValue(null);
 
-    const worker = new WorkerService(jobs);
+    const worker = new WorkerService(jobs, mockPrisma, mockEmbed);
 
     await expect(worker.processNextJob()).resolves.toBe(false);
   });
@@ -40,7 +53,7 @@ describe('WorkerService', () => {
       type: JobType.ANALYTICS_AGGREGATION,
     } as Awaited<ReturnType<JobsService['claimNextJob']>>);
 
-    const worker = new WorkerService(jobs);
+    const worker = new WorkerService(jobs, mockPrisma, mockEmbed);
 
     await expect(worker.processNextJob()).resolves.toBe(true);
     expect(jobs.completeJob).not.toHaveBeenCalled();

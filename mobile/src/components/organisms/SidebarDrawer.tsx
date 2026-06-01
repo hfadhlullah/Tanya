@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   Animated,
   Dimensions,
@@ -113,14 +114,14 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
             Tanya<Text style={{ color: d.accent }}>.</Text>
           </Text>
           <TouchableOpacity style={s.closeBtn} onPress={onClose} activeOpacity={0.7}>
-            <Text style={s.closeIcon}>✕</Text>
+            <Ionicons name="close" size={18} color={d.muted} />
           </TouchableOpacity>
         </View>
 
         {/* New chat */}
         <View style={s.section}>
           <TouchableOpacity style={s.newChatBtn} onPress={onNewChat} activeOpacity={0.8}>
-            <Text style={s.newChatIcon}>✏️</Text>
+            <Ionicons name="create-outline" size={17} color={d.text} />
             <Text style={s.newChatText}>Pertanyaan baru</Text>
           </TouchableOpacity>
         </View>
@@ -164,7 +165,7 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
                         hitSlop={8}
                         onPress={() => startRename(session.sessionId, session.title)}
                       >
-                        <Text style={s.moreIcon}>•••</Text>
+                        <Ionicons name="ellipsis-horizontal" size={16} color={d.muted} />
                       </TouchableOpacity>
                     )}
                     {isRenaming && (
@@ -174,7 +175,7 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
                         hitSlop={8}
                         onPress={() => commitRename(session.sessionId)}
                       >
-                        <Text style={[s.moreIcon, { color: d.accent }]}>✓</Text>
+                        <Ionicons name="checkmark" size={18} color={d.accent} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -194,7 +195,7 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
               activeOpacity={0.85}
               onPress={() => { onClose(); onLoginPress(); }}
             >
-              <Text style={s.loginIcon}>→</Text>
+              <Ionicons name="log-in-outline" size={18} color={d.accent} />
               <Text style={s.loginText}>Masuk / Daftar</Text>
             </TouchableOpacity>
           ) : (
@@ -216,7 +217,7 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
                     activeOpacity={0.7}
                     onPress={() => { setProfileOpen(false); onClose(); onLogout(); }}
                   >
-                    <Text style={s.popoverItemIcon}>→</Text>
+                    <Ionicons name="log-out-outline" size={16} color={d.muted} />
                     <Text style={s.popoverItemText}>Keluar</Text>
                   </TouchableOpacity>
                 </View>
@@ -233,7 +234,7 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
                   <Text style={s.profileName} numberOfLines={1}>{getDisplayName(user)}</Text>
                   <Text style={s.profileSub} numberOfLines={1}>{getSubtitle(user)}</Text>
                 </View>
-                <Text style={s.profileChevron}>{profileOpen ? '▾' : '▸'}</Text>
+                <Ionicons name={profileOpen ? 'chevron-down' : 'chevron-forward'} size={14} color={d.muted} />
               </TouchableOpacity>
             </>
           )
@@ -245,7 +246,7 @@ export function SidebarDrawer({ visible, sessions, currentSessionId, user, onClo
 
 const s = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   drawer: {
@@ -281,10 +282,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeIcon: {
-    fontSize: 16,
-    color: d.muted,
-  },
 
   // new chat
   section: {
@@ -299,9 +296,6 @@ const s = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 13,
     paddingHorizontal: 16,
-  },
-  newChatIcon: {
-    fontSize: 16,
   },
   newChatText: {
     fontSize: 15,
@@ -361,12 +355,9 @@ const s = StyleSheet.create({
     fontWeight: '600',
   },
   moreBtn: {
-    paddingHorizontal: 4,
-  },
-  moreIcon: {
-    fontSize: 11,
-    color: d.muted,
-    letterSpacing: 1,
+    width: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyRecents: {
     fontSize: 13,
@@ -422,19 +413,10 @@ const s = StyleSheet.create({
     borderTopColor: d.border,
     backgroundColor: d.surface,
   },
-  loginIcon: {
-    fontSize: 16,
-    color: d.accent,
-    fontWeight: '700',
-  },
   loginText: {
     fontSize: 15,
     fontWeight: '600',
     color: d.accent,
-  },
-  profileChevron: {
-    fontSize: 12,
-    color: d.muted,
   },
 
   // profile popover
@@ -490,12 +472,6 @@ const s = StyleSheet.create({
     gap: 12,
     paddingVertical: 13,
     paddingHorizontal: 14,
-  },
-  popoverItemIcon: {
-    fontSize: 14,
-    color: d.muted,
-    width: 18,
-    textAlign: 'center',
   },
   popoverItemText: {
     fontSize: 14,
