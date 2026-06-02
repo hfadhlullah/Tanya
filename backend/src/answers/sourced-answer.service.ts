@@ -23,7 +23,7 @@ export class SourcedAnswerService {
   constructor(
     private readonly corpusRetrievalService: CorpusRetrievalService,
     private readonly llm: LlmClientService,
-  ) {}
+  ) { }
 
   async createTierOneAnswer(
     question: { id: string; text: string; language: string; preferredUstadzId?: string | null },
@@ -54,12 +54,12 @@ export class SourcedAnswerService {
         citations:
           usedMatches.length > 0
             ? {
-                create: usedMatches.map((match) => ({
-                  sourceId: match.sourceId,
-                  label: this.getCitationLabel(match),
-                  excerpt: match.content.slice(0, 500),
-                })),
-              }
+              create: usedMatches.map((match) => ({
+                sourceId: match.sourceId,
+                label: this.getCitationLabel(match),
+                excerpt: match.content.slice(0, 500),
+              })),
+            }
             : undefined,
       },
       include: {
@@ -119,22 +119,22 @@ export class SourcedAnswerService {
       rule: string;
       type: string;
     }> = [
-      {
-        type: 'QURAN',
-        heading: 'QURAN',
-        rule: 'Explain what the Quran context says.',
-      },
-      {
-        type: 'HADITH',
-        heading: 'HADITS',
-        rule: 'Explain what the Hadits context says.',
-      },
-      {
-        type: 'USTADZ_CONTENT',
-        heading: 'USTADZ_REVIEW',
-        rule: 'If the Ustadz review context is relevant to the question, explain what it says. If the Ustadz content is unclear, unrelated, or not meaningful for this question, skip the Ustadz section entirely — do not invent an ustadz opinion.',
-      },
-    ];
+        {
+          type: 'QURAN',
+          heading: 'QURAN',
+          rule: 'Explain what the Quran context says.',
+        },
+        {
+          type: 'HADITH',
+          heading: 'HADITS',
+          rule: 'Explain what the Hadits context says.',
+        },
+        {
+          type: 'USTADZ_CONTENT',
+          heading: 'USTADZ_REVIEW',
+          rule: 'If the Ustadz review context is relevant to the question, explain what it says. If the Ustadz content is unclear, unrelated, or not meaningful for this question, skip the Ustadz section entirely — do not invent an ustadz opinion.',
+        },
+      ];
 
     const presentSections = sections
       .map((section) => ({
@@ -194,6 +194,7 @@ export class SourcedAnswerService {
       'Answering rules:\n' +
       '- Answer in Indonesian.\n' +
       '- Make the answer clear, natural, and narrative.\n' +
+      '- Also add some bold to some words or phrases to emphasize important points. Don\'t overdo it, maybe just a few bold words in each section.\n' +
       sourceRules +
       '\n' +
       '- After that, give one combined conclusion.\n' +
