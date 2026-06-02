@@ -9,6 +9,10 @@ Islamic Q&A platform. NestJS backend + Postgres (pgvector) + React Native/Expo m
 - Bun 1.1+
 - npm is still supported as a fallback where needed
 
+## Staging Deploy
+
+For Coolify staging deployment of API, worker, database, and admin, see `docs/deploy-coolify-staging.md`.
+
 ---
 
 ## 1. Database (Docker)
