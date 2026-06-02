@@ -1,4 +1,5 @@
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const AUTH_EXPIRED_EVENT = 'tanya-admin-auth-expired';
 
 function adminKey() {
   return localStorage.getItem('tanya_admin_key') ?? '';
@@ -15,9 +16,21 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.message ?? `HTTP ${res.status}`);
+  if (!res.ok) {
+    const message = data.message ?? `HTTP ${res.status}`;
+
+    if (res.status === 401 && message === 'Invalid demo admin key') {
+      localStorage.removeItem('tanya_admin_key');
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+      throw new Error('Admin key tidak valid. Masuk lagi dengan nilai DEMO_ADMIN_KEY dari backend/.env.');
+    }
+
+    throw new Error(message);
+  }
   return data as T;
 }
+
+export { AUTH_EXPIRED_EVENT };
 
 export interface UstadzApplication {
   id: string;

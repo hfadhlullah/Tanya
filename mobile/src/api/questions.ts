@@ -6,6 +6,7 @@ export type Citation = {
   id: string;
   label: string;
   excerpt: string;
+  source?: { type: string } | null;
 };
 
 export type Answer = {

@@ -103,6 +103,99 @@ describe('SourcedAnswerService', () => {
     );
   });
 
+  it('only persists citations the LLM reported via the SUMBER line', async () => {
+    corpusRetrieval.embedQuestion.mockResolvedValue([0.1, 0.2]);
+    corpusRetrieval.findSourceMatches.mockResolvedValue([
+      {
+        id: 'chunk-1',
+        sourceId: 'source-1',
+        content: 'Konteks yang dipakai.',
+        metadata: { citationLabel: 'QS Al-Baqarah 2:43' },
+        source: { id: 'source-1', type: SourceType.QURAN, title: 'Al-Baqarah', reference: 'QS 2:43' },
+      },
+      {
+        id: 'chunk-2',
+        sourceId: 'source-2',
+        content: 'Konteks yang tidak dipakai.',
+        metadata: { citationLabel: 'QS Al-Baqarah 2:6' },
+        source: { id: 'source-2', type: SourceType.QURAN, title: 'Al-Baqarah', reference: 'QS 2:6' },
+      },
+    ]);
+    llm.complete.mockResolvedValue(
+      'Jawaban memakai konteks pertama saja.\n\nSUMBER: S1',
+    );
+    tx.answer.create.mockResolvedValue({ id: 'answer-3', status: AnswerStatus.AI_PENDING });
+
+    await service.createTierOneAnswer(
+      { id: 'question-1', text: 'Bagaimana salat?', language: 'id' },
+      tx,
+    );
+
+    const arg = tx.answer.create.mock.calls[0][0];
+    expect(arg.data.body).toBe('Jawaban memakai konteks pertama saja.');
+    expect(arg.data.citations.create).toEqual([
+      {
+        sourceId: 'source-1',
+        label: 'QS Al-Baqarah 2:43',
+        excerpt: 'Konteks yang dipakai.',
+      },
+    ]);
+  });
+
+  it('omits ustadz section from the prompt when no ustadz corpus matches', async () => {
+    corpusRetrieval.embedQuestion.mockResolvedValue([0.1, 0.2]);
+    corpusRetrieval.findSourceMatches.mockResolvedValue([
+      {
+        id: 'chunk-1',
+        sourceId: 'source-1',
+        content: 'Ayat tentang takwa.',
+        metadata: { citationLabel: 'QS Al-Baqarah 2:2' },
+        source: { id: 'source-1', type: SourceType.QURAN, title: 'Al-Baqarah', reference: 'QS 2:2' },
+      },
+      {
+        id: 'chunk-2',
+        sourceId: 'source-2',
+        content: 'Hadits tentang adab.',
+        metadata: { citationLabel: 'HR Bukhari' },
+        source: { id: 'source-2', type: SourceType.HADITH, title: 'Bukhari', reference: 'HR Bukhari' },
+      },
+    ]);
+    llm.complete.mockResolvedValue('Jawaban.\n\nSUMBER: S1, S2');
+    tx.answer.create.mockResolvedValue({ id: 'answer-4', status: AnswerStatus.AI_PENDING });
+
+    await service.createTierOneAnswer(
+      { id: 'question-1', text: 'Hukum bertamu?', language: 'id' },
+      tx,
+    );
+
+    const messages = llm.complete.mock.calls[0][0];
+    const system = messages.find((m: any) => m.role === 'system').content;
+    const user = messages.find((m: any) => m.role === 'user').content;
+
+    expect(user).not.toContain('USTADZ_REVIEW');
+    expect(system).not.toContain('Ustadz review says');
+    expect(system).toContain('Do NOT mention or invent any ustadz opinion');
+    expect(system).toContain('Quran context says');
+    expect(system).toContain('Hadits context says');
+  });
+
+  it('returns a generic answer with no sources when no corpus matches', async () => {
+    corpusRetrieval.embedQuestion.mockResolvedValue(null);
+    corpusRetrieval.findSourceMatches.mockResolvedValue([]);
+    llm.complete.mockResolvedValue('Maaf, tidak ada sumber spesifik.');
+    tx.answer.create.mockResolvedValue({ id: 'answer-5', status: AnswerStatus.AI_PENDING });
+
+    await service.createTierOneAnswer(
+      { id: 'question-1', text: 'Apa?', language: 'id' },
+      tx,
+    );
+
+    const arg = tx.answer.create.mock.calls[0][0];
+    expect(arg.data.citations).toBeUndefined();
+    const system = llm.complete.mock.calls[0][0].find((m: any) => m.role === 'system').content;
+    expect(system).toContain('no retrieved corpus');
+  });
+
   it('falls back to source title when imported metadata is missing', async () => {
     corpusRetrieval.embedQuestion.mockResolvedValue(null);
     corpusRetrieval.findSourceMatches.mockResolvedValue([]);

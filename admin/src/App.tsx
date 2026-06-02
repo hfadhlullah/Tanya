@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AUTH_EXPIRED_EVENT } from './api';
 import { LoginGate } from './pages/LoginGate';
 import { UstadzApplicationsPage } from './pages/UstadzApplicationsPage';
 import { SensitiveRulesPage } from './pages/SensitiveRulesPage';
@@ -14,6 +15,15 @@ export default function App() {
 
   useEffect(() => {
     if (localStorage.getItem('tanya_admin_key')) setAuthed(true);
+  }, []);
+
+  useEffect(() => {
+    function handleAuthExpired() {
+      setAuthed(false);
+    }
+
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
   }, []);
 
   if (!authed) return <LoginGate onLogin={() => setAuthed(true)} />;

@@ -26,7 +26,7 @@ export class SourcedAnswerService {
   ) {}
 
   async createTierOneAnswer(
-    question: { id: string; text: string; language: string },
+    question: { id: string; text: string; language: string; preferredUstadzId?: string | null },
     tx: AnswerTx,
   ) {
     const embedding = await this.corpusRetrievalService.embedQuestion(
@@ -36,9 +36,13 @@ export class SourcedAnswerService {
       question.text,
       embedding,
       tx,
+      question.preferredUstadzId ?? undefined,
     );
 
-    const body = await this.synthesizeAnswer(question.text, matches);
+    const { body, usedMatches } = await this.synthesizeAnswer(
+      question.text,
+      matches,
+    );
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const answer = await tx.answer.create({
@@ -48,9 +52,9 @@ export class SourcedAnswerService {
         status: AnswerStatus.AI_PENDING,
         language: question.language,
         citations:
-          matches.length > 0
+          usedMatches.length > 0
             ? {
-                create: matches.map((match) => ({
+                create: usedMatches.map((match) => ({
                   sourceId: match.sourceId,
                   label: this.getCitationLabel(match),
                   excerpt: match.content.slice(0, 500),
@@ -69,7 +73,7 @@ export class SourcedAnswerService {
       data: { status: QuestionStatus.ANSWERED_SOURCE },
     });
 
-    const hasCorpus = matches.length > 0;
+    const hasCorpus = usedMatches.length > 0;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return {
       ...answer,
@@ -81,6 +85,10 @@ export class SourcedAnswerService {
   }
 
   private getCitationLabel(match: CorpusMatch) {
+    if (match.source.type === 'USTADZ_CONTENT') {
+      return match.source.title;
+    }
+
     const metadata = match.metadata;
     if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
       const citationLabel = (metadata as { citationLabel?: unknown })
@@ -96,36 +104,146 @@ export class SourcedAnswerService {
   private async synthesizeAnswer(
     questionText: string,
     matches: Awaited<ReturnType<CorpusRetrievalService['findSourceMatches']>>,
-  ): Promise<string> {
-    const hasContext = matches.length > 0;
-    const sources = hasContext
-      ? matches
-          .map((m, i) => `[${i + 1}] ${m.content.slice(0, 500)}`)
-          .join('\n\n')
-      : null;
+  ): Promise<{ body: string; usedMatches: CorpusMatch[] }> {
+    // Tag each retrieved chunk with a stable marker (S1, S2, ...) so the LLM
+    // can report exactly which sources it actually used.
+    const markerOf = (i: number) => `S${i + 1}`;
+    const labelled = matches.map((match, i) => ({ marker: markerOf(i), match }));
 
-    const userContent = hasContext
-      ? `Pertanyaan: ${questionText}\n\nSumber relevan:\n${sources}\n\nBerikan jawaban berdasarkan sumber di atas.`
-      : `Pertanyaan: ${questionText}\n\nJawab berdasarkan pengetahuan Islam dari Al-Qur'an dan Sunnah.`;
+    // Only build context blocks + answering rules for source types that were
+    // actually retrieved. Absent types are omitted entirely so the LLM cannot
+    // fabricate, e.g., an ustadz opinion when no USTADZ_CONTENT chunk exists.
+    const sections: Array<{
+      heading: string;
+      rule: string;
+      type: string;
+    }> = [
+      {
+        type: 'QURAN',
+        heading: 'QURAN',
+        rule: 'Explain what the Quran context says.',
+      },
+      {
+        type: 'HADITH',
+        heading: 'HADITS',
+        rule: 'Explain what the Hadits context says.',
+      },
+      {
+        type: 'USTADZ_CONTENT',
+        heading: 'USTADZ_REVIEW',
+        rule: 'Explain what the Ustadz review says.',
+      },
+    ];
 
+    const presentSections = sections
+      .map((section) => ({
+        ...section,
+        items: labelled.filter((l) => l.match.source.type === section.type),
+      }))
+      .filter((section) => section.items.length > 0);
+
+    // No corpus context at all → generic AI answer, no source sections.
+    if (presentSections.length === 0) {
+      try {
+        const body = await this.llm.complete([
+          {
+            role: 'system',
+            content:
+              'You are an Islamic Q&A assistant. There is no retrieved corpus ' +
+              'context for this question. Answer briefly and humbly in Indonesian, ' +
+              'state that there is no specific source available, and do not invent ' +
+              'Quran verses, Hadits, or ustadz opinions.',
+          },
+          { role: 'user', content: questionText },
+        ]);
+        return { body: body.trim(), usedMatches: [] };
+      } catch {
+        return {
+          body: 'Maaf, tidak dapat memproses pertanyaan saat ini. Coba lagi sebentar.',
+          usedMatches: [],
+        };
+      }
+    }
+
+    const contextBlocks = presentSections
+      .map(
+        (section) =>
+          `[${section.heading}]\n` +
+          section.items
+            .map((l) => `[${l.marker}] ${l.match.content.slice(0, 500)}`)
+            .join('\n\n'),
+      )
+      .join('\n\n');
+
+    const userContent =
+      `Pertanyaan:\n${questionText}\n\n` +
+      `Retrieved Context (setiap potongan diberi penanda seperti [S1]):\n\n` +
+      contextBlocks;
+
+    const hasUstadz = presentSections.some((s) => s.type === 'USTADZ_CONTENT');
+    const sourceRules = presentSections
+      .map((section) => `- ${section.rule}`)
+      .join('\n');
+
+    const systemPrompt =
+      'You are an Islamic Q&A assistant that answers based only on the provided RAG context.\n\n' +
+      'Your task:\n' +
+      'Answer the user\'s question by combining and summarizing only the corpus ' +
+      'sources provided below.\n\n' +
+      'Answering rules:\n' +
+      '- Answer in Indonesian.\n' +
+      '- Make the answer clear, natural, and narrative.\n' +
+      sourceRules +
+      '\n' +
+      '- After that, give one combined conclusion.\n' +
+      '- Do not invent information outside the provided context.\n' +
+      '- Only use context chunks that are actually relevant to the question; ignore the rest.\n' +
+      (hasUstadz
+        ? ''
+        : '- Do NOT mention or invent any ustadz opinion; no Ustadz review context was provided.\n') +
+      '- Do not give a legal ruling stronger than the retrieved context supports.\n' +
+      '- Use gentle wording such as "berdasarkan konteks yang tersedia".\n' +
+      '- Avoid sounding too robotic or overly academic.\n\n' +
+      'Output format:\n' +
+      'Start with a direct answer, then explain each provided source narratively, then end with a short conclusion.\n' +
+      'After the conclusion, on the very last line, output exactly:\n' +
+      'SUMBER: <comma-separated markers you actually used, e.g. S1, S3>\n' +
+      'List only markers whose context you genuinely relied on. If you used none, output "SUMBER: -".';
+
+    let raw: string;
     try {
-      return await this.llm.complete([
-        {
-          role: 'system',
-          content:
-            "Kamu adalah asisten yang menjawab pertanyaan Islam berdasarkan Al-Qur'an dan Sunnah. " +
-            'Jawaban harus ringkas dan jelas. Jangan berfatwa secara personal. ' +
-            'Jika pertanyaan bukan tentang Islam, sampaikan dengan sopan bahwa kamu hanya bisa menjawab pertanyaan seputar Islam.',
-        },
+      raw = await this.llm.complete([
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userContent },
       ]);
     } catch {
-      if (!hasContext)
-        return 'Maaf, tidak dapat memproses pertanyaan saat ini. Coba lagi sebentar.';
-      return [
-        'Berikut sumber awal yang relevan. Jawaban ini belum ditinjau ustadz.',
-        matches.map((m) => `- ${m.content}`).join('\n'),
-      ].join('\n\n');
+      return {
+        body: 'Maaf, tidak dapat memproses pertanyaan saat ini. Coba lagi sebentar.',
+        usedMatches: [],
+      };
     }
+
+    return this.parseUsedMatches(raw, labelled);
+  }
+
+  private parseUsedMatches(
+    raw: string,
+    labelled: Array<{ marker: string; match: CorpusMatch }>,
+  ): { body: string; usedMatches: CorpusMatch[] } {
+    const sumberMatch = raw.match(/^\s*SUMBER\s*:\s*(.*)$/im);
+    if (!sumberMatch) {
+      // LLM omitted the marker line — fall back to all matches.
+      return { body: raw.trim(), usedMatches: labelled.map((l) => l.match) };
+    }
+
+    const body = raw.replace(sumberMatch[0], '').trim();
+    const usedMarkers = new Set(
+      (sumberMatch[1].match(/S\d+/gi) ?? []).map((m) => m.toUpperCase()),
+    );
+    const usedMatches = labelled
+      .filter((l) => usedMarkers.has(l.marker))
+      .map((l) => l.match);
+
+    return { body, usedMatches };
   }
 }

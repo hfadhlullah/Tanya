@@ -4,13 +4,13 @@ import {
   FlatList,
   Linking,
   SafeAreaView,
-  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import Markdown, { type MarkdownProps } from 'react-native-markdown-display';
 import { StatusBar } from 'expo-status-bar';
 import { type AuthUser } from '../../api/auth';
@@ -192,7 +192,9 @@ function QuestionTurn({
   onEdit: (q: Question) => void;
   newAnswerIds: Set<string>;
 }) {
-  const answer = question.answers?.[0];
+  const answer =
+    question.answers?.find((a) => a.status === 'VERIFIED') ??
+    question.answers?.[0];
 
   return (
     <View>
@@ -441,6 +443,7 @@ function AnswerBlock({
   const [displayed, setDisplayed] = useState(animate ? '' : answer.body);
   const [done, setDone] = useState(!animate);
   const [liked, setLiked] = useState<'up' | 'down' | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!animate || !answer.body) return;
@@ -469,49 +472,64 @@ function AnswerBlock({
     return secs > 0 ? secs : null;
   })();
 
+  const hasUstadzCorpus = answer.citations?.some(
+    (c) => c.source?.type === 'USTADZ_CONTENT',
+  );
+
   const sourceLabel = answer.label
     ?? (isSensitiveQuestion
       ? 'Pertanyaan sensitif · tidak dapat dijawab'
       : isVerified
-        ? null
+        ? ustadzName
+          ? `Dari Al-Qur'an & Sunnah · Sudah ditinjau oleh ustadz ${ustadzName}`
+          : "Dari Al-Qur'an & Sunnah · Sudah ditinjau ustadz"
         : answer.citations?.length > 0
-          ? "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz"
+          ? hasUstadzCorpus
+            ? "Dari Al-Qur'an, Sunnah & Ustadz · belum diverifikasi"
+            : "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz"
           : thinkingSecs
             ? `Berpikir selama ${thinkingSecs} detik`
             : 'Jawaban AI · belum ditinjau ustadz');
 
-  function handleCopy() {
-    Share.share({ message: answer.body });
+  async function handleCopy() {
+    const ok = await Clipboard.setStringAsync(answer.body);
+    if (!ok) return;
+
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
   }
 
   return (
     <View style={s.answerBlock}>
       {/* Source label — sits between question and answer prose */}
       <View style={s.sourceRow}>
-        <View style={[s.sourceBar, isVerified ? s.sourceBarUstadz : s.sourceBarCorpus]} />
-        {isVerified && ustadzName ? (
-          <Text style={s.sourceText}>
-            Dari Ustadz{' '}
-            <Text style={s.sourceUstadzName}>{ustadzName}</Text>
-            {'  '}
-            <Text style={s.verifiedPill}>✓ Terverifikasi</Text>
-          </Text>
-        ) : (
-          <Text style={s.sourceText}>{sourceLabel}</Text>
-        )}
+        <View style={[s.sourceBar, s.sourceBarCorpus]} />
+        <Text style={s.sourceText}>{sourceLabel}</Text>
       </View>
 
       {/* Answer prose */}
       <AnswerMarkdown content={displayed} showCursor={!done} />
 
-      {/* Citation pills */}
-      {done && answer.citations?.length > 0 && (
+      {/* Ustadz verification note */}
+      {done && isVerified && ustadzName && (
+        <View style={s.ustadzNote}>
+          <Text style={s.ustadzNoteText}>
+            ✓ Ditinjau oleh{' '}
+            <Text style={s.sourceUstadzName}>{ustadzName}</Text>
+          </Text>
+        </View>
+      )}
+
+      {/* Citation pills — deduplicated by label; hidden once ustadz-verified */}
+      {done && !isVerified && answer.citations?.length > 0 && (
         <View style={s.citationsRow}>
-          {answer.citations.map((c) => (
-            <View key={c.id} style={s.citationPill}>
-              <Text style={s.citationPillText}>{c.label}</Text>
-            </View>
-          ))}
+          {answer.citations
+            .filter((c, i, arr) => arr.findIndex((x) => x.label === c.label) === i)
+            .map((c) => (
+              <View key={c.id} style={s.citationPill}>
+                <Text style={s.citationPillText}>{c.label}</Text>
+              </View>
+            ))}
         </View>
       )}
 
@@ -520,7 +538,7 @@ function AnswerBlock({
         <View style={s.actionsRow}>
           <TouchableOpacity style={s.actionCopy} onPress={handleCopy} activeOpacity={0.7}>
             <Ionicons name="copy-outline" size={13} color={colors.muted} />
-            <Text style={s.actionCopyText}>Salin</Text>
+            <Text style={s.actionCopyText}>{copied ? 'Tersalin' : 'Salin'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.actionIcon, liked === 'up' && s.actionIconActive]}
@@ -641,6 +659,8 @@ const s = StyleSheet.create({
   sourceText: { fontSize: 12, color: colors.muted, fontWeight: '500', flex: 1 },
   sourceUstadzName: { color: colors.ink, fontWeight: '700' },
   verifiedPill: { color: colors.emeraldDark, fontWeight: '700' },
+  ustadzNote: { marginTop: 8, flexDirection: 'row', alignItems: 'center' },
+  ustadzNoteText: { fontSize: 12, color: colors.emeraldDark, fontWeight: '500' },
 
   // answer prose
   answerTextWrap: { position: 'relative' },

@@ -1,9 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { AuditAction, AnswerStatus, QuestionStatus } from '@prisma/client';
-import {
-  AnswerBankService,
-  type AnswerBankMatch,
-} from '../answers/answer-bank.service';
 import { SourcedAnswerService } from '../answers/sourced-answer.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SafetyService } from '../safety/safety.service';
@@ -16,7 +12,6 @@ const SENSITIVE_QUESTION_REFUSAL =
 export class QuestionsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly answerBankService: AnswerBankService,
     private readonly sourcedAnswerService: SourcedAnswerService,
     private readonly safetyService: SafetyService,
   ) {}
@@ -40,18 +35,9 @@ export class QuestionsService {
       select: { preferredUstadzIds: true },
     });
 
-    const verifiedMatch: AnswerBankMatch | null = classification.isSensitive
-      ? null
-      : await this.answerBankService.findVerifiedMatch(
-          text,
-          userPrefs?.preferredUstadzIds ?? [],
-        );
-
     const questionStatus = classification.isSensitive
       ? QuestionStatus.ANSWERED_VERIFIED
-      : verifiedMatch
-        ? QuestionStatus.ANSWERED_VERIFIED
-        : QuestionStatus.RECEIVED;
+      : QuestionStatus.RECEIVED;
 
     // Create question (and verified answer if available) in a short tx
     const { answer: immediateAnswer, question } =
@@ -112,53 +98,13 @@ export class QuestionsService {
           };
         }
 
-        if (verifiedMatch) {
-          const reusedAnswer = await tx.answer.create({
-            data: {
-              questionId: createdQuestion.id,
-              body: verifiedMatch.body,
-              status: AnswerStatus.VERIFIED,
-              language: verifiedMatch.language,
-              verifyingUstadzId: verifiedMatch.verifyingUstadz?.id ?? null,
-              verifiedAt: new Date(),
-              citations: {
-                create: verifiedMatch.citations.map((c) => ({
-                  sourceId: c.sourceId,
-                  label: c.label,
-                  excerpt: c.excerpt,
-                })),
-              },
-            },
-            include: {
-              citations: { include: { source: true } },
-              verifyingUstadz: {
-                select: {
-                  id: true,
-                  publicName: true,
-                  bio: true,
-                  specialties: true,
-                  madhhab: true,
-                },
-              },
-            },
-          });
-          return {
-            answer: {
-              ...reusedAnswer,
-              verified: true,
-              reusedFromAnswerId: verifiedMatch.answerId,
-            },
-            question: createdQuestion,
-          };
-        }
-
         return { answer: null, question: createdQuestion };
       });
 
     // LLM answer generation happens outside the transaction (no timeout risk)
 
     let answer = immediateAnswer;
-    if (!classification.isSensitive && !verifiedMatch) {
+    if (!classification.isSensitive) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       answer = await this.sourcedAnswerService.createTierOneAnswer(
         question,
@@ -168,11 +114,7 @@ export class QuestionsService {
 
     return {
       question,
-      route: classification.isSensitive
-        ? 'ustadz_review'
-        : verifiedMatch
-          ? 'verified_answer_bank'
-          : 'answer_pipeline',
+      route: classification.isSensitive ? 'ustadz_review' : 'answer_pipeline',
       answer,
     };
   }
@@ -194,6 +136,7 @@ export class QuestionsService {
       orderBy: { createdAt: 'desc' },
       include: {
         answers: {
+          orderBy: { createdAt: 'desc' },
           include: {
             citations: { include: { source: true } },
             verifyingUstadz: {

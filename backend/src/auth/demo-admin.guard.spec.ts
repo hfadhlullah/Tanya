@@ -1,4 +1,8 @@
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { DemoAdminGuard } from './demo-admin.guard';
 
 describe('DemoAdminGuard', () => {
@@ -30,6 +34,14 @@ describe('DemoAdminGuard', () => {
 
     expect(() => guard.canActivate(contextWithHeader('wrong'))).toThrow(
       UnauthorizedException,
+    );
+  });
+
+  it('rejects missing server configuration', () => {
+    delete process.env.DEMO_ADMIN_KEY;
+
+    expect(() => guard.canActivate(contextWithHeader('secret'))).toThrow(
+      InternalServerErrorException,
     );
   });
 });

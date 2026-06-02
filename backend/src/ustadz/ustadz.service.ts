@@ -12,6 +12,7 @@ import {
   UserRole,
   UstadzStatus,
 } from '@prisma/client';
+import { JobsService } from '../jobs/jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { OnboardUstadzDto } from './dto/onboard-ustadz.dto';
@@ -22,6 +23,7 @@ export class UstadzService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly jobs: JobsService,
   ) {}
 
   async onboard(userId: string, dto: OnboardUstadzDto) {
@@ -248,7 +250,6 @@ export class UstadzService {
       const verifiedAnswer = await tx.answer.update({
         where: { id: answerId },
         data: {
-          body: dto.body?.trim() ?? answer.body,
           status: AnswerStatus.VERIFIED,
           verifyingUstadzId: profile.id,
           verifiedAt: new Date(),
@@ -283,6 +284,41 @@ export class UstadzService {
           metadata: { verifyingUstadzId: profile.id },
         },
       });
+
+      if (dto.body?.trim() && dto.body.trim().length >= 20) {
+        const sourceTitle = `Ustadz ${profile.publicName}`;
+        let source = await tx.source.findFirst({
+          where: { type: 'USTADZ_CONTENT', reference: profile.id },
+        });
+
+        if (!source) {
+          source = await tx.source.create({
+            data: {
+              type: 'USTADZ_CONTENT',
+              title: sourceTitle,
+              reference: profile.id,
+              language: answer.language ?? 'id',
+            },
+          });
+        }
+
+        const chunk = await tx.corpusChunk.create({
+          data: {
+            sourceId: source.id,
+            content: dto.body!.trim(),
+            topic: answer.question.text.slice(0, 200),
+            metadata: {
+              answerId,
+              questionId: answer.questionId,
+              verifyingUstadzId: profile.id,
+              verifiedAt: new Date().toISOString(),
+              citationLabel: `Ustadz ${profile.publicName}`,
+            },
+          },
+        });
+
+        await this.jobs.enqueueCorpusEmbedding(chunk.id, tx);
+      }
 
       return { ...verifiedAnswer, verified: true };
     });
