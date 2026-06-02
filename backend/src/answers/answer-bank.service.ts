@@ -59,6 +59,7 @@ export class AnswerBankService {
             bio: true,
             specialties: true,
             madhhab: true,
+            status: true,
           },
         },
         question: { select: { text: true } },

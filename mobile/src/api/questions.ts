@@ -17,7 +17,7 @@ export type Answer = {
   label?: string | null;
   createdAt?: string | null;
   citations: Citation[];
-  verifyingUstadz?: { publicName: string } | null;
+  verifyingUstadz?: { publicName: string; status: string } | null;
 };
 
 export type Question = {

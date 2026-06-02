@@ -81,6 +81,7 @@ export class QuestionsService {
                   bio: true,
                   specialties: true,
                   madhhab: true,
+                  status: true,
                 },
               },
             },

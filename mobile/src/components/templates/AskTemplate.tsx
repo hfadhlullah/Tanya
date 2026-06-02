@@ -476,7 +476,10 @@ function AnswerBlock({
   }, [answer.id]);
 
   const isVerified = answer.status === 'VERIFIED';
-  const ustadzName = answer.verifyingUstadz?.publicName;
+  const ustadzName =
+    answer.verifyingUstadz?.status === 'APPROVED'
+      ? answer.verifyingUstadz.publicName
+      : null;
   const thinkingSecs = (() => {
     if (!questionCreatedAt || !answer.createdAt) return null;
     const secs = Math.round(
