@@ -19,6 +19,7 @@ import {
 import { DemoAdminGuard } from '../auth/demo-admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OnboardUstadzDto } from './dto/onboard-ustadz.dto';
+import { ReviewQueueFilterDto } from './dto/review-queue-filter.dto';
 import { VerifyAnswerDto } from './dto/verify-answer.dto';
 import { UstadzService } from './ustadz.service';
 
@@ -61,8 +62,11 @@ export class UstadzController {
 
   @Get('me/review-queue')
   @UseGuards(JwtAuthGuard)
-  getReviewQueue(@CurrentUser() user: CurrentUserType) {
-    return this.ustadzService.getReviewQueue(user.id);
+  getReviewQueue(
+    @CurrentUser() user: CurrentUserType,
+    @Query() filters: ReviewQueueFilterDto,
+  ) {
+    return this.ustadzService.getReviewQueue(user.id, filters);
   }
 
   @Post('me/credentials/upload')

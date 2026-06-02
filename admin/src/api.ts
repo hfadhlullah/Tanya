@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 const AUTH_EXPIRED_EVENT = 'tanya-admin-auth-expired';
 
 function adminKey() {

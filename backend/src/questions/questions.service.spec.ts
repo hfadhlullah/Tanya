@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { AnswerBankService } from '../answers/answer-bank.service';
+import { LlmClientService } from '../answers/llm-client.service';
 import { SourcedAnswerService } from '../answers/sourced-answer.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SafetyService } from '../safety/safety.service';
@@ -22,11 +22,12 @@ describe('QuestionsService', () => {
     },
     $transaction: jest.fn(),
   };
-  const answerBank = {
-    findVerifiedMatch: jest.fn(),
-  };
   const sourcedAnswer = {
     createTierOneAnswer: jest.fn(),
+    createConversationalAnswer: jest.fn(),
+  };
+  const llm = {
+    complete: jest.fn(),
   };
   const safety = {
     classifyQuestion: jest.fn(),
@@ -35,12 +36,13 @@ describe('QuestionsService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     prisma.user.findUnique.mockResolvedValue({ preferredUstadzIds: [] });
+    llm.complete.mockResolvedValue('RAG');
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QuestionsService,
         { provide: PrismaService, useValue: prisma },
-        { provide: AnswerBankService, useValue: answerBank },
+        { provide: LlmClientService, useValue: llm },
         { provide: SourcedAnswerService, useValue: sourcedAnswer },
         { provide: SafetyService, useValue: safety },
       ],
@@ -52,7 +54,6 @@ describe('QuestionsService', () => {
 
   it('stores safe questions and sends them to the answer pipeline', async () => {
     safety.classifyQuestion.mockResolvedValue({ isSensitive: false });
-    answerBank.findVerifiedMatch.mockResolvedValue(null);
     prisma.question.create.mockResolvedValue({
       id: 'question-1',
       text: 'Bagaimana cara salat?',
@@ -83,10 +84,6 @@ describe('QuestionsService', () => {
         status: 'RECEIVED',
       },
     });
-    expect(answerBank.findVerifiedMatch).toHaveBeenCalledWith(
-      'Bagaimana cara salat?',
-      [],
-    );
     expect(sourcedAnswer.createTierOneAnswer).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'question-1' }),
       prisma,
@@ -96,6 +93,98 @@ describe('QuestionsService', () => {
     expect(result.answer).toEqual(
       expect.objectContaining({ id: 'answer-1', verified: false }),
     );
+    expect(sourcedAnswer.createConversationalAnswer).not.toHaveBeenCalled();
+  });
+
+  it('routes simple conversational messages away from the RAG pipeline', async () => {
+    safety.classifyQuestion.mockResolvedValue({ isSensitive: false });
+    prisma.question.create.mockResolvedValue({
+      id: 'question-chat-1',
+      text: 'halo',
+      language: 'id',
+      isSensitive: false,
+      status: 'RECEIVED',
+    });
+    llm.complete.mockResolvedValue('CHAT');
+    sourcedAnswer.createConversationalAnswer.mockResolvedValue({
+      id: 'answer-chat-1',
+      status: 'AI_PENDING',
+      label: null,
+      verified: false,
+    });
+
+    const result = await service.create('user-1', {
+      text: 'halo',
+      intentHint: 'conversation',
+    });
+
+    expect(sourcedAnswer.createConversationalAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'question-chat-1' }),
+      prisma,
+    );
+    expect(sourcedAnswer.createTierOneAnswer).not.toHaveBeenCalled();
+    expect(result.route).toBe('conversation');
+    expect(result.answer).toEqual(
+      expect.objectContaining({ id: 'answer-chat-1', verified: false }),
+    );
+  });
+
+  it('treats assalamualaikum as conversational without RAG', async () => {
+    safety.classifyQuestion.mockResolvedValue({ isSensitive: false });
+    prisma.question.create.mockResolvedValue({
+      id: 'question-chat-2',
+      text: 'assalamualaikum',
+      language: 'id',
+      isSensitive: false,
+      status: 'RECEIVED',
+    });
+    sourcedAnswer.createConversationalAnswer.mockResolvedValue({
+      id: 'answer-chat-2',
+      status: 'AI_PENDING',
+      label: null,
+      verified: false,
+    });
+
+    const result = await service.create('user-1', {
+      text: 'assalamualaikum',
+      intentHint: 'conversation',
+    });
+
+    expect(sourcedAnswer.createConversationalAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'question-chat-2' }),
+      prisma,
+    );
+    expect(sourcedAnswer.createTierOneAnswer).not.toHaveBeenCalled();
+    expect(result.route).toBe('conversation');
+  });
+
+  it('trusts the explicit conversation intent hint and skips LLM intent routing', async () => {
+    safety.classifyQuestion.mockResolvedValue({ isSensitive: false });
+    prisma.question.create.mockResolvedValue({
+      id: 'question-chat-3',
+      text: 'halo',
+      language: 'id',
+      isSensitive: false,
+      status: 'RECEIVED',
+    });
+    sourcedAnswer.createConversationalAnswer.mockResolvedValue({
+      id: 'answer-chat-3',
+      status: 'AI_PENDING',
+      label: null,
+      verified: false,
+    });
+
+    const result = await service.create('user-1', {
+      text: 'halo',
+      intentHint: 'conversation',
+    });
+
+    expect(llm.complete).not.toHaveBeenCalled();
+    expect(sourcedAnswer.createConversationalAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'question-chat-3' }),
+      prisma,
+    );
+    expect(result.route).toBe('conversation');
   });
 
   it('routes sensitive questions to ustadz review without answer bank lookup', async () => {
@@ -123,7 +212,6 @@ describe('QuestionsService', () => {
       text: 'Bagaimana pembagian waris?',
     });
 
-    expect(answerBank.findVerifiedMatch).not.toHaveBeenCalled();
     expect(sourcedAnswer.createTierOneAnswer).not.toHaveBeenCalled();
     expect(prisma.question.create).toHaveBeenCalledWith({
       data: {
@@ -210,59 +298,31 @@ describe('QuestionsService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('reuses verified answer from bank and skips sourced answer pipeline', async () => {
+  it('sends normal non-conversational safe questions to the sourced answer pipeline', async () => {
     safety.classifyQuestion.mockResolvedValue({ isSensitive: false });
-    answerBank.findVerifiedMatch.mockResolvedValue({
-      answerId: 'answer-verified-1',
-      score: 0.8,
-      body: 'Salat wajib lima waktu.',
-      language: 'id',
-      citations: [
-        {
-          sourceId: 'source-1',
-          label: 'QS 2:43',
-          excerpt: null,
-          source: { id: 'source-1', title: 'Al-Baqarah', reference: 'QS 2:43' },
-        },
-      ],
-      verifyingUstadz: {
-        id: 'ustadz-1',
-        publicName: 'Ust. Ahmad',
-        bio: null,
-        specialties: [],
-        madhhab: null,
-      },
-    });
     prisma.question.create.mockResolvedValue({
       id: 'question-5',
       text: 'Salat itu apa?',
       language: 'id',
       isSensitive: false,
-      status: 'ANSWERED_VERIFIED',
+      status: 'RECEIVED',
     });
-    prisma.answer = {
-      ...prisma.answer,
-      create: jest.fn().mockResolvedValue({
-        id: 'answer-new-1',
-        status: 'VERIFIED',
-        body: 'Salat wajib lima waktu.',
-      }),
-    };
+    sourcedAnswer.createTierOneAnswer.mockResolvedValue({
+      id: 'answer-5',
+      status: 'AI_PENDING',
+      verified: false,
+    });
 
     const result = await service.create('user-1', { text: 'Salat itu apa?' });
 
-    expect(sourcedAnswer.createTierOneAnswer).not.toHaveBeenCalled();
-    expect(result.route).toBe('verified_answer_bank');
-    expect(result.answer).toEqual(
-      expect.objectContaining({
-        verified: true,
-        reusedFromAnswerId: 'answer-verified-1',
-      }),
+    expect(sourcedAnswer.createTierOneAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'question-5' }),
+      prisma,
     );
-    expect(prisma.question.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: 'ANSWERED_VERIFIED' }),
-      }),
+    expect(sourcedAnswer.createConversationalAnswer).not.toHaveBeenCalled();
+    expect(result.route).toBe('answer_pipeline');
+    expect(result.answer).toEqual(
+      expect.objectContaining({ id: 'answer-5', verified: false }),
     );
   });
 });

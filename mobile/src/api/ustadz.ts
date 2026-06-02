@@ -94,9 +94,13 @@ export async function getUstadzDashboard() {
   return data as { profile: UstadzProfile; locked: boolean; stats: UstadzStats };
 }
 
-export async function getReviewQueue() {
-  const res = await fetch(`${apiUrl}/ustadz/me/review-queue`, {
-    headers: await headers(),
+export async function getReviewQueue(filters?: { date?: 'today'; type?: 'sensitive' | 'non-sensitive' }) {
+  const params = new URLSearchParams();
+  if (filters?.date) params.set('date', filters.date);
+  if (filters?.type) params.set('type', filters.type);
+  const query = params.toString();
+  const res = await fetch(`${apiUrl}/ustadz/me/review-queue${query ? `?${query}` : ''}`, {
+    headers: { ...await headers(), 'Cache-Control': 'no-cache' },
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message ?? 'Antrian review tidak dapat dimuat.');

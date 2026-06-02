@@ -4,7 +4,7 @@ services:
       context: ./backend
     environment:
       NODE_ENV: production
-      PORT: 3000
+      PORT: 3001
       DATABASE_URL: ${DATABASE_URL}
       CORS_ORIGIN: ${CORS_ORIGIN}
       DEMO_ADMIN_KEY: ${DEMO_ADMIN_KEY}
@@ -18,12 +18,12 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health >/dev/null 2>&1"]
       interval: 10s
       timeout: 5s
       retries: 5
     ports:
-      - "${API_PORT:-3001}:3000"
+      - "${API_PORT:-3001}:3001"
     volumes:
       - uploads_data:/app/uploads
     restart: unless-stopped

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,9 +16,23 @@ import { BrandText } from '../../components/atoms/BrandText';
 import { IconButton } from '../../components/atoms/IconButton';
 import { colors } from '../../theme/ui-reference';
 
+type DateFilter = 'all' | 'today';
+type TypeFilter = 'all' | 'sensitive' | 'non-sensitive';
+
 interface Props {
   onSelect: (answer: ReviewAnswer, index: number, total: number) => void;
   onBack: () => void;
+}
+
+function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      style={[styles.chip, active && styles.chipActive]}
+      onPress={onPress}
+    >
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    </TouchableOpacity>
+  );
 }
 
 export function UstadzReviewQueueScreen({ onSelect, onBack }: Props) {
@@ -25,12 +40,20 @@ export function UstadzReviewQueueScreen({ onSelect, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [draftIds, setDraftIds] = useState<Set<string>>(new Set());
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(dateFilter, typeFilter); }, [dateFilter, typeFilter]);
 
-  async function load() {
+  async function load(date: DateFilter, type: TypeFilter) {
+    setLoading(true);
+    setError(null);
     try {
-      const data = await getReviewQueue();
+      const filters = {
+        ...(date === 'today' ? { date: 'today' as const } : {}),
+        ...(type !== 'all' ? { type: type as 'sensitive' | 'non-sensitive' } : {}),
+      };
+      const data = await getReviewQueue(Object.keys(filters).length ? filters : undefined);
       setAnswers(data.answers);
       // Check which answers have saved drafts
       const keys = await AsyncStorage.getAllKeys();
@@ -48,14 +71,6 @@ export function UstadzReviewQueueScreen({ onSelect, onBack }: Props) {
     }
   }
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.emerald} />
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -67,7 +82,22 @@ export function UstadzReviewQueueScreen({ onSelect, onBack }: Props) {
         <View style={{ width: 40 }} />
       </View>
 
-      {error ? (
+      <View style={styles.filterBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+          <Chip label="Semua" active={dateFilter === 'all'} onPress={() => setDateFilter('all')} />
+          <Chip label="Hari Ini" active={dateFilter === 'today'} onPress={() => setDateFilter('today')} />
+          <View style={styles.filterDivider} />
+          <Chip label="Semua Tipe" active={typeFilter === 'all'} onPress={() => setTypeFilter('all')} />
+          <Chip label="Sensitif" active={typeFilter === 'sensitive'} onPress={() => setTypeFilter('sensitive')} />
+          <Chip label="Tidak Sensitif" active={typeFilter === 'non-sensitive'} onPress={() => setTypeFilter('non-sensitive')} />
+        </ScrollView>
+      </View>
+
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.emerald} />
+        </View>
+      ) : error ? (
         <View style={styles.center}>
           <BrandText variant="caption">{error}</BrandText>
         </View>
@@ -160,4 +190,36 @@ const styles = StyleSheet.create({
     borderColor: colors.emerald,
   },
   editedBadgeText: { fontSize: 11, fontWeight: '700', color: colors.emeraldDark },
+  filterBar: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    backgroundColor: colors.paper,
+  },
+  filterScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  filterDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: colors.line,
+    marginHorizontal: 4,
+  },
+  chip: {
+    borderRadius: 99,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.white,
+  },
+  chipActive: {
+    backgroundColor: colors.emeraldSoft,
+    borderColor: colors.emerald,
+  },
+  chipText: { fontSize: 13, color: colors.muted, fontWeight: '500' },
+  chipTextActive: { color: colors.emeraldDark, fontWeight: '700' },
 });

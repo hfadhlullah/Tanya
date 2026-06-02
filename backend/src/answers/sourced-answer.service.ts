@@ -85,6 +85,55 @@ export class SourcedAnswerService {
     return { ...answer, label, verified: false };
   }
 
+  async createConversationalAnswer(
+    question: {
+      id: string;
+      text: string;
+      language: string;
+      preferredUstadzId?: string | null;
+    },
+    tx: AnswerTx,
+  ) {
+    let body: string;
+
+    try {
+      body = await this.llm.complete([
+        {
+          role: 'system',
+          content:
+            'You are an Islamic Q&A assistant. This user message is casual conversation, not a request for Quran, Hadith, or scholarly sourcing. ' +
+            'Reply in warm, natural Indonesian like a thoughtful Muslim or Muslimah: friendly, calm, respectful, and full of adab, but not strict or preachy. ' +
+            'Keep it short, conversational, and helpful. Do not mention missing sources, corpus retrieval, or ustadz review unless the user asks about Islamic guidance.',
+        },
+        { role: 'user', content: question.text },
+      ]);
+    } catch {
+      body = 'Halo. Ada yang ingin kamu tanyakan hari ini?';
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const answer = await tx.answer.create({
+      data: {
+        questionId: question.id,
+        body: body.trim(),
+        status: AnswerStatus.AI_PENDING,
+        language: question.language,
+      },
+      include: {
+        citations: { include: { source: true } },
+        verifyingUstadz: true,
+      },
+    });
+
+    await tx.question.update({
+      where: { id: question.id },
+      data: { status: QuestionStatus.ANSWERED_SOURCE },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return { ...answer, label: null, verified: false };
+  }
+
   private getCitationLabel(match: CorpusMatch) {
     if (match.source.type === 'USTADZ_CONTENT') {
       return match.source.title;
@@ -150,10 +199,12 @@ export class SourcedAnswerService {
           {
             role: 'system',
             content:
-              'You are an Islamic Q&A assistant. There is no retrieved corpus ' +
-              'context for this question. Answer briefly and humbly in Indonesian, ' +
-              'state that there is no specific source available, and do not invent ' +
-              'Quran verses, Hadits, or ustadz opinions.',
+              'You are an Islamic Q&A assistant. Speak like a thoughtful Muslim or ' +
+              'Muslimah: warm, calm, respectful, and full of adab, but not strict or ' +
+              'preachy. There is no retrieved corpus context for this question. ' +
+              'Answer briefly and humbly in Indonesian, state that there is no ' +
+              'specific source available, and do not invent Quran verses, Hadits, or ' +
+              'ustadz opinions.',
           },
           { role: 'user', content: questionText },
         ]);
@@ -187,13 +238,16 @@ export class SourcedAnswerService {
       .join('\n');
 
     const systemPrompt =
-      'You are an Islamic Q&A assistant that answers based only on the provided RAG context.\n\n' +
+      'You are an Islamic Q&A assistant that answers based only on the provided RAG context. ' +
+      'Speak like a thoughtful Muslim or Muslimah: warm, calm, respectful, and full of adab, ' +
+      'but not strict, preachy, or judgmental.\n\n' +
       'Your task:\n' +
       'Answer the user\'s question by combining and summarizing only the corpus ' +
       'sources provided below.\n\n' +
       'Answering rules:\n' +
       '- Answer in Indonesian.\n' +
       '- Make the answer clear, natural, and narrative.\n' +
+      '- Let the tone feel like a kind Muslim friend who menjaga adab and speaks gently.\n' +
       '- Also add some bold to some words or phrases to emphasize important points. Don\'t overdo it, maybe just a few bold words in each section.\n' +
       sourceRules +
       '\n' +
@@ -206,7 +260,8 @@ export class SourcedAnswerService {
         : '- Do NOT mention or invent any ustadz opinion; no Ustadz review context was provided.\n') +
       '- Do not give a legal ruling stronger than the retrieved context supports.\n' +
       '- Use gentle wording such as "berdasarkan konteks yang tersedia".\n' +
-      '- Avoid sounding too robotic or overly academic.\n\n' +
+      '- Avoid sounding too robotic or overly academic.\n' +
+      '- Avoid sounding harsh, scolding, or like you are lecturing the user.\n\n' +
       'Output format:\n' +
       'Start with a direct answer, then explain each provided source narratively, then end with a short conclusion.\n' +
       'After the conclusion, on the very last line, output exactly:\n' +

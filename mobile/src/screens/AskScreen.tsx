@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { createQuestion, listQuestions, type Question } from '../api/questions';
+import {
+  createQuestion,
+  listQuestions,
+  type Answer,
+  type Question,
+  type QuestionIntentHint,
+} from '../api/questions';
 import { getStoredUser, logout, type AuthUser } from '../api/auth';
 import { AskTemplate } from '../components/templates/AskTemplate';
 
@@ -23,6 +29,96 @@ export interface ChatSession {
   questions: Question[];
 }
 
+type PendingMode = QuestionIntentHint;
+
+function predictPendingMode(text: string): PendingMode {
+  const normalized = text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const conversationalPhrases = new Set([
+    'hi',
+    'hai',
+    'halo',
+    'hello',
+    'assalamualaikum',
+    'assalamu alaikum',
+    'assalamualaikum warahmatullahi wabarakatuh',
+    'assalamu alaikum warahmatullahi wabarakatuh',
+    'salam',
+    'hey',
+    'yo',
+    'whats up',
+    'whatsup',
+    'apa kabar',
+    'gimana kabarnya',
+    'lagi ngapain',
+    'terima kasih',
+    'makasih',
+    'makasi',
+    'thanks',
+    'thanks ya',
+    'oke',
+    'ok',
+    'sip',
+    'bisa bantu',
+  ]);
+
+  return conversationalPhrases.has(normalized) ? 'conversation' : 'rag';
+}
+
+function buildConversationalFallback(text: string): Answer {
+  const normalized = text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  let body = 'Siap, saya di sini. Mau tanya apa?';
+
+  if (normalized.includes('assalamualaikum') || normalized.includes('assalamu alaikum')) {
+    body = 'Waalaikumsalam warahmatullahi wabarakatuh.';
+  } else if (
+    normalized === 'halo' ||
+    normalized === 'hai' ||
+    normalized === 'hi' ||
+    normalized === 'hello'
+  ) {
+    body = 'Halo. Ada yang ingin kamu tanyakan?';
+  } else if (
+    normalized.includes('terima kasih') ||
+    normalized.includes('makasih') ||
+    normalized.includes('makasi') ||
+    normalized.includes('thanks')
+  ) {
+    body = 'Sama-sama.';
+  }
+
+  return {
+    id: `conversation-fallback-${Date.now()}`,
+    body,
+    status: 'AI_PENDING',
+    language: 'id',
+    label: null,
+    citations: [],
+    verifyingUstadz: null,
+  };
+}
+
+function shouldForceConversationalAnswer(
+  intentHint: PendingMode,
+  answer: Answer | null | undefined,
+) {
+  if (intentHint !== 'conversation' || !answer) {
+    return false;
+  }
+
+  const label = answer.label?.toLowerCase() ?? '';
+  return answer.citations.length > 0 || label.includes('al-qur') || label.includes('sunnah');
+}
+
 interface Props {
   onResetAuth?: () => void;
   onBack?: () => void;
@@ -30,6 +126,7 @@ interface Props {
 
 export function AskScreen({ onResetAuth, onBack }: Props) {
   const [loading, setLoading] = useState(false);
+  const [pendingMode, setPendingMode] = useState<PendingMode>('rag');
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [newAnswerIds, setNewAnswerIds] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -64,6 +161,8 @@ export function AskScreen({ onResetAuth, onBack }: Props) {
       setShowLoginGate(true);
       return;
     }
+    const intentHint = predictPendingMode(text);
+    setPendingMode(intentHint);
     setLoading(true);
 
     // Show question immediately with empty answers (triggers ProcessingIndicator)
@@ -81,8 +180,12 @@ export function AskScreen({ onResetAuth, onBack }: Props) {
     setAllQuestions((prev) => [optimisticQuestion, ...prev]);
 
     try {
-      const result = await createQuestion({ text, sessionId: currentSessionId });
-      const answer = result.answer
+      const result = await createQuestion({
+        text,
+        sessionId: currentSessionId,
+        intentHint,
+      });
+      const rawAnswer = result.answer
         ?? (result.question.isSensitive || result.route === 'ustadz_review'
           ? {
               ...SENSITIVE_QUESTION_REFUSAL,
@@ -90,6 +193,9 @@ export function AskScreen({ onResetAuth, onBack }: Props) {
               language: result.question.language,
             }
           : null);
+      const answer = shouldForceConversationalAnswer(intentHint, rawAnswer)
+        ? buildConversationalFallback(text)
+        : rawAnswer;
       const newQuestion: Question = {
         ...result.question,
         answers: answer ? [answer] : [],
@@ -109,6 +215,7 @@ export function AskScreen({ onResetAuth, onBack }: Props) {
       setAllQuestions((prev) => prev.filter((q) => q.id !== optimisticId));
     } finally {
       setLoading(false);
+      setPendingMode('rag');
     }
   }
 
@@ -175,6 +282,7 @@ export function AskScreen({ onResetAuth, onBack }: Props) {
   return (
     <AskTemplate
       loading={loading}
+      pendingMode={pendingMode}
       guestBlocked={guestBlocked}
       questions={currentQuestions}
       sessions={sessions}

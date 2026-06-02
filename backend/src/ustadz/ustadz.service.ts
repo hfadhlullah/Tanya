@@ -205,20 +205,40 @@ export class UstadzService {
     });
   }
 
-  async getReviewQueue(userId: string) {
+  async getReviewQueue(
+    userId: string,
+    filters?: { date?: string; type?: string },
+  ) {
     const profile = await this.requireApprovedProfile(userId);
+
+    const questionFilter =
+      filters?.type === 'sensitive'
+        ? { isSensitive: true, status: QuestionStatus.ANSWERED_SOURCE }
+        : filters?.type === 'non-sensitive'
+          ? { isSensitive: false, status: QuestionStatus.ANSWERED_SOURCE }
+          : {
+              OR: [
+                { isSensitive: true },
+                { status: QuestionStatus.ANSWERED_SOURCE },
+              ],
+            };
+
+    const dateFilter =
+      filters?.date === 'today'
+        ? {
+            createdAt: {
+              gte: new Date(new Date().setHours(0, 0, 0, 0)),
+            },
+          }
+        : {};
 
     return this.prisma.answer
       .findMany({
         where: {
           status: AnswerStatus.AI_PENDING,
           verifyingUstadzId: null,
-          question: {
-            OR: [
-              { isSensitive: true },
-              { status: QuestionStatus.ANSWERED_SOURCE },
-            ],
-          },
+          ...dateFilter,
+          question: questionFilter,
         },
         orderBy: { createdAt: 'asc' },
         include: {

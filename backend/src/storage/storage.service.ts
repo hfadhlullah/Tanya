@@ -20,7 +20,7 @@ export class StorageService {
     this.uploadDir =
       process.env.STORAGE_LOCAL_PATH ?? path.join(process.cwd(), 'uploads');
     this.baseUrl =
-      process.env.STORAGE_BASE_URL ?? 'http://localhost:3000/uploads';
+      process.env.STORAGE_BASE_URL ?? 'http://localhost:3001/uploads';
 
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });

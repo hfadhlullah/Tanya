@@ -103,6 +103,49 @@ describe('SourcedAnswerService', () => {
     );
   });
 
+  it('creates a short conversational answer without citations', async () => {
+    llm.complete.mockResolvedValue('Halo juga. Ada yang bisa aku bantu?');
+    tx.answer.create.mockResolvedValue({
+      id: 'answer-chat-1',
+      status: AnswerStatus.AI_PENDING,
+      citations: [],
+      verifyingUstadz: null,
+    });
+
+    const result = await service.createConversationalAnswer(
+      { id: 'question-chat-1', text: 'halo', language: 'id' },
+      tx,
+    );
+
+    expect(llm.complete).toHaveBeenCalledWith([
+      expect.objectContaining({ role: 'system' }),
+      { role: 'user', content: 'halo' },
+    ]);
+    expect(tx.answer.create).toHaveBeenCalledWith({
+      data: {
+        questionId: 'question-chat-1',
+        body: 'Halo juga. Ada yang bisa aku bantu?',
+        status: AnswerStatus.AI_PENDING,
+        language: 'id',
+      },
+      include: {
+        citations: { include: { source: true } },
+        verifyingUstadz: true,
+      },
+    });
+    expect(tx.question.update).toHaveBeenCalledWith({
+      where: { id: 'question-chat-1' },
+      data: { status: QuestionStatus.ANSWERED_SOURCE },
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'answer-chat-1',
+        label: null,
+        verified: false,
+      }),
+    );
+  });
+
   it('only persists citations the LLM reported via the SUMBER line', async () => {
     corpusRetrieval.embedQuestion.mockResolvedValue([0.1, 0.2]);
     corpusRetrieval.findSourceMatches.mockResolvedValue([

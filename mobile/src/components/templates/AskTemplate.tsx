@@ -25,6 +25,7 @@ import { IconButton } from '../atoms/IconButton';
 
 type AskTemplateProps = {
   loading: boolean;
+  pendingMode?: 'conversation' | 'rag';
   questions: Question[];
   sessions: ChatSession[];
   currentSessionId: string;
@@ -49,6 +50,7 @@ type AskTemplateProps = {
 
 export function AskTemplate({
   loading,
+  pendingMode = 'rag',
   questions,
   sessions,
   currentSessionId,
@@ -144,6 +146,7 @@ export function AskTemplate({
                 showDivider={index < questions.length - 1}
                 onEdit={onEditQuestion}
                 newAnswerIds={newAnswerIds}
+                pendingMode={loading && index === questions.length - 1 ? pendingMode : 'rag'}
               />
             )}
             ListHeaderComponent={
@@ -186,11 +189,13 @@ function QuestionTurn({
   showDivider,
   onEdit,
   newAnswerIds,
+  pendingMode,
 }: {
   question: Question;
   showDivider: boolean;
   onEdit: (q: Question) => void;
   newAnswerIds: Set<string>;
+  pendingMode: 'conversation' | 'rag';
 }) {
   const answer =
     question.answers?.find((a) => a.status === 'VERIFIED') ??
@@ -225,7 +230,7 @@ function QuestionTurn({
             questionCreatedAt={question.createdAt}
           />
         ) : (
-          <ProcessingIndicator isSensitive={question.isSensitive} />
+          <ProcessingIndicator isSensitive={question.isSensitive} mode={pendingMode} />
         )}
       </View>
 
@@ -236,7 +241,13 @@ function QuestionTurn({
 
 // ─── Processing indicator ─────────────────────────────────────────────────────
 
-function ProcessingIndicator({ isSensitive }: { isSensitive: boolean }) {
+function ProcessingIndicator({
+  isSensitive,
+  mode,
+}: {
+  isSensitive: boolean;
+  mode: 'conversation' | 'rag';
+}) {
   const dot1 = useRef(new Animated.Value(0.25)).current;
   const dot2 = useRef(new Animated.Value(0.25)).current;
   const dot3 = useRef(new Animated.Value(0.25)).current;
@@ -261,7 +272,9 @@ function ProcessingIndicator({ isSensitive }: { isSensitive: boolean }) {
 
   const label = isSensitive
     ? 'Menunggu tinjauan ustadz…'
-    : 'Mencari dari Al-Qur\'an & Sunnah…';
+    : mode === 'conversation'
+      ? 'Thinking...'
+      : 'Mencari dari Al-Qur\'an & Hadits…';
 
   return (
     <View style={s.processingRow}>
@@ -480,6 +493,9 @@ function AnswerBlock({
   const corpusUstadzName = ustadzCorpusCitation?.label?.replace(/^Ustadz\s+/i, '');
 
   const effectiveUstadzName = ustadzName ?? corpusUstadzName;
+  const hasCitations = (answer.citations?.length ?? 0) > 0;
+  const shouldShowSourceRow =
+    isSensitiveQuestion || isVerified || hasUstadzCorpus || hasCitations || !!answer.label;
 
   const sourceLabel = isSensitiveQuestion
     ? 'Pertanyaan sensitif · tidak dapat dijawab'
@@ -487,11 +503,11 @@ function AnswerBlock({
       ? effectiveUstadzName
         ? `Dari Al-Qur'an, Sunnah & Sudah ditinjau oleh Ustadz ${effectiveUstadzName}`
         : "Dari Al-Qur'an, Sunnah & Sudah ditinjau ustadz"
-      : answer.citations?.length > 0
+      : hasCitations
         ? "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz"
-        : thinkingSecs
-          ? `Berpikir selama ${thinkingSecs} detik`
-          : (answer.label ?? 'Jawaban AI · belum ditinjau ustadz');
+      : thinkingSecs
+        ? `Berpikir selama ${thinkingSecs} detik`
+          : (answer.label ?? '');
 
   async function handleCopy() {
     const ok = await Clipboard.setStringAsync(answer.body);
@@ -504,10 +520,12 @@ function AnswerBlock({
   return (
     <View style={s.answerBlock}>
       {/* Source label — sits between question and answer prose */}
-      <View style={s.sourceRow}>
-        <View style={[s.sourceBar, s.sourceBarCorpus]} />
-        <Text style={s.sourceText}>{sourceLabel}</Text>
-      </View>
+      {shouldShowSourceRow && (
+        <View style={s.sourceRow}>
+          <View style={[s.sourceBar, s.sourceBarCorpus]} />
+          <Text style={s.sourceText}>{sourceLabel}</Text>
+        </View>
+      )}
 
       {/* Answer prose */}
       <AnswerMarkdown content={displayed} showCursor={!done} />

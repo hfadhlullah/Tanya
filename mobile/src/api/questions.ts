@@ -34,9 +34,11 @@ export type Question = {
 
 export type CreateQuestionResponse = {
   question: Question;
-  route: 'answer_pipeline' | 'verified_answer_bank' | 'ustadz_review';
+  route: 'answer_pipeline' | 'verified_answer_bank' | 'ustadz_review' | 'conversation';
   answer: Answer | null;
 };
+
+export type QuestionIntentHint = 'conversation' | 'rag';
 
 async function headers() {
   const token = await getStoredToken();
@@ -44,11 +46,20 @@ async function headers() {
   return authHeaders(token);
 }
 
-export async function createQuestion(input: { text: string; sessionId: string }) {
+export async function createQuestion(input: {
+  text: string;
+  sessionId: string;
+  intentHint: QuestionIntentHint;
+}) {
   const response = await fetch(`${apiUrl}/questions`, {
     method: 'POST',
     headers: await headers(),
-    body: JSON.stringify({ language: 'id', text: input.text, sessionId: input.sessionId }),
+    body: JSON.stringify({
+      language: 'id',
+      text: input.text,
+      sessionId: input.sessionId,
+      intentHint: input.intentHint,
+    }),
   });
 
   if (!response.ok) {

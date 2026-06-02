@@ -88,7 +88,7 @@ If you prefer npm:
 npm run start:dev
 ```
 
-API runs at `http://localhost:3000`.
+API runs at `http://localhost:3001`.
 
 Start worker in a second terminal:
 
@@ -128,7 +128,7 @@ npm install
 Create `mobile/.env`:
 
 ```env
-EXPO_PUBLIC_API_URL=http://localhost:3000
+EXPO_PUBLIC_API_URL=http://localhost:3001
 ```
 
 Start Expo for web:
@@ -175,7 +175,7 @@ npm install
 Create `admin/.env`:
 
 ```env
-VITE_API_URL=http://localhost:3000
+VITE_API_URL=http://localhost:3001
 ```
 
 Start admin panel:
@@ -211,7 +211,7 @@ For full RAG behavior, keep the worker running so imported chunks receive embedd
 
 ```bash
 # Create a source
-curl -X POST http://localhost:3000/corpus/sources \
+curl -X POST http://localhost:3001/corpus/sources \
   -H "Content-Type: application/json" \
   -H "x-demo-admin-key: your-admin-key" \
   -d '{
@@ -224,7 +224,7 @@ curl -X POST http://localhost:3000/corpus/sources \
 # Response includes "id" — use it as SOURCE_ID below
 
 # Add a chunk
-curl -X POST http://localhost:3000/corpus/chunks \
+curl -X POST http://localhost:3001/corpus/chunks \
   -H "Content-Type: application/json" \
   -H "x-demo-admin-key: your-admin-key" \
   -d '{
@@ -237,7 +237,7 @@ curl -X POST http://localhost:3000/corpus/chunks \
 Bulk import for Qur'an or hadith is also available from the admin panel or via API:
 
 ```bash
-curl -X POST http://localhost:3000/corpus/import \
+curl -X POST http://localhost:3001/corpus/import \
   -H "x-demo-admin-key: your-admin-key" \
   -F "type=QURAN" \
   -F "title=Quran" \
@@ -285,6 +285,6 @@ cd mobile && bun run web
 ```
 
 Local URLs:
-- Backend API: `http://localhost:3000`
+- Backend API: `http://localhost:3001`
 - Admin: `http://localhost:5174`
 - Mobile web: `http://localhost:8081`

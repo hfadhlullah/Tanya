@@ -26,4 +26,9 @@ export class CreateQuestionDto {
   @IsString()
   @MaxLength(128)
   sessionId?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['conversation', 'rag'])
+  intentHint?: 'conversation' | 'rag';
 }
