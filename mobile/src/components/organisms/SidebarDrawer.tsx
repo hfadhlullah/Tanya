@@ -107,6 +107,9 @@ export function SidebarDrawer({
   }
 
   useEffect(() => {
+    if (visible) {
+      slideAnim.setValue(-DRAWER_WIDTH);
+    }
     Animated.spring(slideAnim, {
       toValue: visible ? 0 : -DRAWER_WIDTH,
       useNativeDriver: true,
