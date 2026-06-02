@@ -217,7 +217,7 @@ export class CorpusService {
       throw new BadRequestException('Invalid JSON import file');
     }
 
-    const records = this.extractJsonRecords(parsed);
+    const { records, injected } = this.extractJsonRecords(parsed);
 
     if (!records) {
       throw new BadRequestException(
@@ -230,29 +230,67 @@ export class CorpusService {
         throw new BadRequestException(`Record ${index + 1} must be an object`);
       }
 
+      const merged = { ...injected, ...(record as Record<string, unknown>) };
       return Object.fromEntries(
-        Object.entries(record).map(([key, value]) => [
-          key,
-          this.normalizeImportValue(value, key, index),
-        ]),
+        Object.entries(merged)
+          .filter(([, value]) => this.isScalarValue(value))
+          .map(([key, value]) => [
+            key,
+            this.normalizeImportValue(value, key, index),
+          ]),
       );
     });
   }
 
-  private extractJsonRecords(parsed: unknown): unknown[] | null {
+  private isScalarValue(value: unknown): boolean {
+    return (
+      value == null ||
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    );
+  }
+
+  private extractJsonRecords(parsed: unknown): {
+    records: unknown[] | null;
+    injected: Record<string, unknown>;
+  } {
     if (Array.isArray(parsed)) {
-      return parsed as unknown[];
+      return { records: parsed as unknown[], injected: {} };
     }
 
     if (!parsed || typeof parsed !== 'object') {
-      return null;
+      return { records: null, injected: {} };
     }
 
     const object = parsed as Record<string, unknown>;
 
     const surahRecord = this.extractSurahRecords(object);
     if (surahRecord) {
-      return surahRecord;
+      return { records: surahRecord, injected: {} };
+    }
+
+    const scalarMeta: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(object)) {
+      if (this.isScalarValue(value)) {
+        scalarMeta[key] = value;
+      }
+    }
+
+    const hadithKeys = ['hadiths', 'hadith'];
+    for (const key of hadithKeys) {
+      if (Array.isArray(object[key])) {
+        const nameField =
+          typeof object['name'] === 'string'
+            ? object['name']
+            : typeof object['id'] === 'string'
+              ? object['id']
+              : undefined;
+        const injected: Record<string, unknown> = nameField
+          ? { collection: nameField }
+          : {};
+        return { records: object[key] as unknown[], injected };
+      }
     }
 
     const arrayKeys = [
@@ -266,7 +304,7 @@ export class CorpusService {
 
     for (const key of arrayKeys) {
       if (Array.isArray(object[key])) {
-        return object[key] as unknown[];
+        return { records: object[key] as unknown[], injected: {} };
       }
     }
 
@@ -274,16 +312,19 @@ export class CorpusService {
       /^\d+$/.test(key),
     );
     if (numericEntries.length > 0) {
-      return numericEntries.map(([ayah, value]) => {
-        if (value && typeof value === 'object' && !Array.isArray(value)) {
-          return { ayah, ...(value as Record<string, unknown>) };
-        }
+      return {
+        records: numericEntries.map(([ayah, value]) => {
+          if (value && typeof value === 'object' && !Array.isArray(value)) {
+            return { ayah, ...(value as Record<string, unknown>) };
+          }
 
-        return { ayah, text: value };
-      });
+          return { ayah, text: value };
+        }),
+        injected: {},
+      };
     }
 
-    return null;
+    return { records: null, injected: {} };
   }
 
   private extractSurahRecords(object: Record<string, unknown>) {
@@ -434,19 +475,41 @@ export class CorpusService {
   }
 
   private validateImportRows(type: ImportCorpusDto['type'], rows: ImportRow[]) {
-    const requiredFields =
-      type === 'QURAN'
-        ? ['surah', 'ayah', 'text']
-        : ['collection', 'number', 'text'];
-
-    rows.forEach((row, index) => {
-      requiredFields.forEach((field) => {
-        if (!row[field]?.trim()) {
-          throw new BadRequestException(
-            `Record ${index + 1} is missing required field: ${field}`,
-          );
+    if (type === 'QURAN') {
+      rows.forEach((row, index) => {
+        for (const field of ['surah', 'ayah', 'text']) {
+          if (!row[field]?.trim()) {
+            throw new BadRequestException(
+              `Record ${index + 1} is missing required field: ${field}`,
+            );
+          }
         }
       });
+      return;
+    }
+
+    rows.forEach((row, index) => {
+      if (!row['collection']?.trim()) {
+        throw new BadRequestException(
+          `Record ${index + 1} is missing required field: collection`,
+        );
+      }
+
+      const hasNumber =
+        row['number']?.trim() || row['hadithnumber']?.trim();
+      if (!hasNumber) {
+        throw new BadRequestException(
+          `Record ${index + 1} is missing required field: number`,
+        );
+      }
+
+      const hasText =
+        row['text']?.trim() || row['id']?.trim() || row['arab']?.trim();
+      if (!hasText) {
+        throw new BadRequestException(
+          `Record ${index + 1} is missing required field: text`,
+        );
+      }
     });
   }
 
@@ -479,11 +542,11 @@ export class CorpusService {
     }
 
     const collection = row.collection.trim();
-    const number = row.number.trim();
+    const number = (row.number ?? row.hadithnumber ?? '').trim();
     const grade = row.grade?.trim();
     const book = row.book?.trim();
     const chapter = row.chapter?.trim();
-    const text = row.text.trim();
+    const text = (row.text ?? row.id ?? row.arab ?? '').trim();
     const citationLabel = [
       collection,
       number ? `No. ${number}` : null,
@@ -508,21 +571,11 @@ export class CorpusService {
     };
   }
 
-  private normalizeImportValue(value: unknown, key: string, index: number) {
+  private normalizeImportValue(value: unknown, _key: string, _index: number) {
     if (value == null) {
       return '';
     }
 
-    if (
-      typeof value === 'string' ||
-      typeof value === 'number' ||
-      typeof value === 'boolean'
-    ) {
-      return String(value);
-    }
-
-    throw new BadRequestException(
-      `Record ${index + 1} has non-scalar value for field: ${key}`,
-    );
+    return String(value);
   }
 }
