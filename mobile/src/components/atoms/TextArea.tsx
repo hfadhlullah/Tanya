@@ -25,7 +25,6 @@ const styles = StyleSheet.create({
     minHeight: 100,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    // @ts-ignore — web-only: suppress browser focus outline
-    outlineStyle: 'none',
+    outlineStyle: 'none' as any,
   },
 });

@@ -22,8 +22,7 @@ export const textFieldStyle = StyleSheet.create({
     fontSize: 15,
     color: colors.ink,
     minHeight: 52,
-    // @ts-ignore — web-only: suppress browser focus outline
-    outlineStyle: 'none',
+    outlineStyle: 'none' as any,
   },
 }).input;
 
@@ -38,7 +37,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.ink,
     minHeight: 52,
-    // @ts-ignore — web-only: suppress browser focus outline
-    outlineStyle: 'none',
+    outlineStyle: 'none' as any,
   },
 });
