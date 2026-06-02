@@ -22,7 +22,9 @@ async function main() {
   `;
 
   const toEnqueue = chunks.filter((c) => !queuedIds.has(c.id));
-  console.log(`Found ${chunks.length} embedded chunks, ${toEnqueue.length} need graph extraction`);
+  console.log(
+    `Found ${chunks.length} embedded chunks, ${toEnqueue.length} need graph extraction`,
+  );
 
   let count = 0;
   for (const chunk of toEnqueue) {

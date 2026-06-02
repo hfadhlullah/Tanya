@@ -7,8 +7,7 @@ const baseUrl =
 const apiKey = process.env.REQUESTY_API_KEY ?? '';
 const embeddingModel =
   process.env.REQUESTY_EMBEDDING_MODEL ?? 'openai/text-embedding-3-small';
-const chatModel =
-  process.env.REQUESTY_CHAT_MODEL ?? 'openai/gpt-4o-mini';
+const chatModel = process.env.REQUESTY_CHAT_MODEL ?? 'openai/gpt-4o-mini';
 
 function headers() {
   return {
@@ -55,7 +54,12 @@ async function complete(
 
 async function bootstrap() {
   const prisma = new PrismaClient();
-  const worker = new WorkerService(new JobsService(prisma), prisma, embed, complete);
+  const worker = new WorkerService(
+    new JobsService(prisma),
+    prisma,
+    embed,
+    complete,
+  );
 
   console.log('Tanya worker started');
 

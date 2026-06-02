@@ -17,6 +17,9 @@ describe('QuestionsService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
     },
+    answer: {
+      create: jest.fn(),
+    },
     auditLog: {
       create: jest.fn(),
     },

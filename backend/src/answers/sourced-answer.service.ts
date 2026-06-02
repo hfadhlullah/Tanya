@@ -23,10 +23,15 @@ export class SourcedAnswerService {
   constructor(
     private readonly corpusRetrievalService: CorpusRetrievalService,
     private readonly llm: LlmClientService,
-  ) { }
+  ) {}
 
   async createTierOneAnswer(
-    question: { id: string; text: string; language: string; preferredUstadzId?: string | null },
+    question: {
+      id: string;
+      text: string;
+      language: string;
+      preferredUstadzId?: string | null;
+    },
     tx: AnswerTx,
   ) {
     const embedding = await this.corpusRetrievalService.embedQuestion(
@@ -54,12 +59,12 @@ export class SourcedAnswerService {
         citations:
           usedMatches.length > 0
             ? {
-              create: usedMatches.map((match) => ({
-                sourceId: match.sourceId,
-                label: this.getCitationLabel(match),
-                excerpt: match.content.slice(0, 500),
-              })),
-            }
+                create: usedMatches.map((match) => ({
+                  sourceId: match.sourceId,
+                  label: this.getCitationLabel(match),
+                  excerpt: match.content.slice(0, 500),
+                })),
+              }
             : undefined,
       },
       include: {
@@ -74,7 +79,9 @@ export class SourcedAnswerService {
     });
 
     const hasCorpus = usedMatches.length > 0;
-    const hasUstadzCorpus = usedMatches.some((m) => m.source.type === 'USTADZ_CONTENT');
+    const hasUstadzCorpus = usedMatches.some(
+      (m) => m.source.type === 'USTADZ_CONTENT',
+    );
     const label = hasCorpus
       ? hasUstadzCorpus
         ? "Dari Al-Qur'an, Sunnah & Ustadz · belum diverifikasi"
@@ -158,7 +165,10 @@ export class SourcedAnswerService {
     // Tag each retrieved chunk with a stable marker (S1, S2, ...) so the LLM
     // can report exactly which sources it actually used.
     const markerOf = (i: number) => `S${i + 1}`;
-    const labelled = matches.map((match, i) => ({ marker: markerOf(i), match }));
+    const labelled = matches.map((match, i) => ({
+      marker: markerOf(i),
+      match,
+    }));
 
     // Only build context blocks + answering rules for source types that were
     // actually retrieved. Absent types are omitted entirely so the LLM cannot
@@ -168,22 +178,22 @@ export class SourcedAnswerService {
       rule: string;
       type: string;
     }> = [
-        {
-          type: 'QURAN',
-          heading: 'QURAN',
-          rule: 'Explain what the Quran context says.',
-        },
-        {
-          type: 'HADITH',
-          heading: 'HADITS',
-          rule: 'Explain what the Hadits context says.',
-        },
-        {
-          type: 'USTADZ_CONTENT',
-          heading: 'USTADZ_REVIEW',
-          rule: 'If the Ustadz review context is relevant to the question, explain what it says. If the Ustadz content is unclear, unrelated, or not meaningful for this question, skip the Ustadz section entirely — do not invent an ustadz opinion.',
-        },
-      ];
+      {
+        type: 'QURAN',
+        heading: 'QURAN',
+        rule: 'Explain what the Quran context says.',
+      },
+      {
+        type: 'HADITH',
+        heading: 'HADITS',
+        rule: 'Explain what the Hadits context says.',
+      },
+      {
+        type: 'USTADZ_CONTENT',
+        heading: 'USTADZ_REVIEW',
+        rule: 'If the Ustadz review context is relevant to the question, explain what it says. If the Ustadz content is unclear, unrelated, or not meaningful for this question, skip the Ustadz section entirely — do not invent an ustadz opinion.',
+      },
+    ];
 
     const presentSections = sections
       .map((section) => ({
@@ -242,13 +252,13 @@ export class SourcedAnswerService {
       'Speak like a thoughtful Muslim or Muslimah: warm, calm, respectful, and full of adab, ' +
       'but not strict, preachy, or judgmental.\n\n' +
       'Your task:\n' +
-      'Answer the user\'s question by combining and summarizing only the corpus ' +
+      "Answer the user's question by combining and summarizing only the corpus " +
       'sources provided below.\n\n' +
       'Answering rules:\n' +
       '- Answer in Indonesian.\n' +
       '- Make the answer clear, natural, and narrative.\n' +
       '- Let the tone feel like a kind Muslim friend who menjaga adab and speaks gently.\n' +
-      '- Also add some bold to some words or phrases to emphasize important points. Don\'t overdo it, maybe just a few bold words in each section.\n' +
+      "- Also add some bold to some words or phrases to emphasize important points. Don't overdo it, maybe just a few bold words in each section.\n" +
       sourceRules +
       '\n' +
       '- After that, give one combined conclusion.\n' +
@@ -296,7 +306,9 @@ export class SourcedAnswerService {
 
     let body = raw.replace(sumberMatch[0], '').trim();
     const usedMarkers = new Set(
-      (sumberMatch[1].match(/S\d+/gi) ?? []).map((m) => m.toUpperCase()),
+      (sumberMatch[1].match(/S\d+/gi) ?? []).map((m: string) =>
+        m.toUpperCase(),
+      ),
     );
     const usedMatches = labelled
       .filter((l) => usedMarkers.has(l.marker))
@@ -304,9 +316,12 @@ export class SourcedAnswerService {
 
     // Replace inline markers like (S1), [S1], or S1 with actual citation labels.
     const markerMap = new Map(
-      labelled.map((l) => [l.marker.toUpperCase(), this.getCitationLabel(l.match)]),
+      labelled.map((l) => [
+        l.marker.toUpperCase(),
+        this.getCitationLabel(l.match),
+      ]),
     );
-    body = body.replace(/[\[(]?(S\d+)[\])]?/gi, (_, m: string) => {
+    body = body.replace(/[[(]?(S\d+)[\])]?/gi, (_, m: string) => {
       const label = markerMap.get(m.toUpperCase());
       return label ? `(${label})` : `(${m})`;
     });

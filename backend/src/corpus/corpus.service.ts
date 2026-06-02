@@ -233,22 +233,17 @@ export class CorpusService {
       const merged = { ...injected, ...(record as Record<string, unknown>) };
       return Object.fromEntries(
         Object.entries(merged)
-          .filter(([, value]) => this.isScalarValue(value))
-          .map(([key, value]) => [
-            key,
-            this.normalizeImportValue(value, key, index),
-          ]),
+          .filter(
+            (
+              entry,
+            ): entry is [
+              string,
+              string | number | boolean | null | undefined,
+            ] => this.isScalarValue(entry[1]),
+          )
+          .map(([key, value]) => [key, this.normalizeImportValue(value)]),
       );
     });
-  }
-
-  private isScalarValue(value: unknown): boolean {
-    return (
-      value == null ||
-      typeof value === 'string' ||
-      typeof value === 'number' ||
-      typeof value === 'boolean'
-    );
   }
 
   private extractJsonRecords(parsed: unknown): {
@@ -495,8 +490,7 @@ export class CorpusService {
         );
       }
 
-      const hasNumber =
-        row['number']?.trim() || row['hadithnumber']?.trim();
+      const hasNumber = row['number']?.trim() || row['hadithnumber']?.trim();
       if (!hasNumber) {
         throw new BadRequestException(
           `Record ${index + 1} is missing required field: number`,
@@ -571,7 +565,21 @@ export class CorpusService {
     };
   }
 
-  private normalizeImportValue(value: unknown, _key: string, _index: number) {
+  private isScalarValue(
+    value: unknown,
+  ): value is string | number | boolean | null | undefined {
+    return (
+      value === null ||
+      value === undefined ||
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    );
+  }
+
+  private normalizeImportValue(
+    value: string | number | boolean | null | undefined,
+  ) {
     if (value == null) {
       return '';
     }

@@ -39,9 +39,9 @@ describe('UstadzController', () => {
   });
 
   it('loads current ustadz review queue', async () => {
-    await controller.getReviewQueue({ id: 'user-1' });
+    await controller.getReviewQueue({ id: 'user-1' }, {});
 
-    expect(ustadzService.getReviewQueue).toHaveBeenCalledWith('user-1');
+    expect(ustadzService.getReviewQueue).toHaveBeenCalledWith('user-1', {});
   });
 
   it('verifies answer as current ustadz', async () => {

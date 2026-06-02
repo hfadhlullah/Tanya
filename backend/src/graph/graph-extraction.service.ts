@@ -14,7 +14,13 @@ type ExtractionResult = {
   relationships: ExtractedRelationship[];
 };
 
-const VALID_ENTITY_TYPES = new Set(['CONCEPT', 'PERSON', 'RULING', 'VERSE', 'HADITH']);
+const VALID_ENTITY_TYPES = new Set([
+  'CONCEPT',
+  'PERSON',
+  'RULING',
+  'VERSE',
+  'HADITH',
+]);
 const VALID_RELATIONSHIP_TYPES = new Set([
   'SUPPORTS',
   'ELABORATES',
@@ -114,13 +120,12 @@ export class GraphExtractionService {
     prisma: PrismaClient,
     embedFn: (text: string) => Promise<number[]>,
   ): Promise<void> {
-    const db = prisma as any;
     const entityIds = new Map<string, string>();
 
     for (const entity of result.entities) {
       const key = `${entity.name}::${entity.type}`;
       try {
-        const upserted = await db.entity.upsert({
+        const upserted = await prisma.entity.upsert({
           where: { name_type: { name: entity.name, type: entity.type } },
           create: {
             name: entity.name,
@@ -132,7 +137,7 @@ export class GraphExtractionService {
           },
           select: { id: true },
         });
-        entityIds.set(key, upserted.id as string);
+        entityIds.set(key, upserted.id);
 
         if (entity.description) {
           try {
@@ -148,15 +153,15 @@ export class GraphExtractionService {
           }
         }
 
-        await db.entityMention.upsert({
+        await prisma.entityMention.upsert({
           where: {
             entityId_corpusChunkId: {
-              entityId: upserted.id as string,
+              entityId: upserted.id,
               corpusChunkId: chunkId,
             },
           },
           create: {
-            entityId: upserted.id as string,
+            entityId: upserted.id,
             corpusChunkId: chunkId,
           },
           update: {},
@@ -179,7 +184,7 @@ export class GraphExtractionService {
       if (!sourceId || !targetId) continue;
 
       try {
-        await db.relationship.create({
+        await prisma.relationship.create({
           data: {
             sourceId,
             targetId,

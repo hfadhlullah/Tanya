@@ -1,5 +1,11 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { AuditAction, SensitiveRuleScope, UserRole, UstadzStatus } from '@prisma/client';
+import {
+  AuditAction,
+  Prisma,
+  SensitiveRuleScope,
+  UserRole,
+  UstadzStatus,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUstadzDto } from './dto/create-ustadz.dto';
@@ -158,29 +164,38 @@ export class AdminService {
           action: AuditAction.SENSITIVE_RULE_CHANGED,
           entity: 'SensitiveRule',
           entityId: rule.id,
-          metadata: { change: 'updated', topic: rule.topic, scope: rule.scope, isActive: rule.isActive },
+          metadata: {
+            change: 'updated',
+            topic: rule.topic,
+            scope: rule.scope,
+            isActive: rule.isActive,
+          },
         },
       });
       return rule;
     });
   }
 
-  async listAuditLogs(query: {
-    action?: string;
-    search?: string;
-    page?: number;
-    limit?: number;
-  } = {}) {
+  async listAuditLogs(
+    query: {
+      action?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+    } = {},
+  ) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(100, Math.max(1, query.limit ?? 20));
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.AuditLogWhereInput = {};
     if (query.action) {
-      where.action = query.action;
+      where.action = query.action as Prisma.AuditLogWhereInput['action'];
     }
     if (query.search?.trim()) {
-      where.actor = { email: { contains: query.search.trim(), mode: 'insensitive' } };
+      where.actor = {
+        email: { contains: query.search.trim(), mode: 'insensitive' },
+      };
     }
 
     const [data, total] = await Promise.all([

@@ -89,7 +89,10 @@ export class WorkerService {
     `;
   }
 
-  private async handleGraphExtraction(job: { payload: unknown; corpusChunkId?: string | null }) {
+  private async handleGraphExtraction(job: {
+    payload: unknown;
+    corpusChunkId?: string | null;
+  }) {
     if (!this.completeFn) return;
 
     const payload = job.payload as { corpusChunkId?: string };

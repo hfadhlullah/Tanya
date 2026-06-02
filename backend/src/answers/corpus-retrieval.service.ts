@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { type CorpusChunk, type Source, type Prisma, SourceType } from '@prisma/client';
+import {
+  type CorpusChunk,
+  type Source,
+  type Prisma,
+  SourceType,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LlmClientService } from './llm-client.service';
 
@@ -39,7 +44,11 @@ export class CorpusRetrievalService {
         );
         if (graphMatches.length > 0) return graphMatches;
       } else {
-        const vectorMatches = await this.findByEmbedding(embedding, questionText, preferredUstadzId);
+        const vectorMatches = await this.findByEmbedding(
+          embedding,
+          questionText,
+          preferredUstadzId,
+        );
         if (vectorMatches.length > 0) {
           return vectorMatches;
         }
@@ -53,13 +62,16 @@ export class CorpusRetrievalService {
     questionText: string,
     preferredUstadzId?: string,
   ): Promise<CorpusMatch[]> {
-    const vectorMatches = await this.findByEmbedding(embedding, questionText, preferredUstadzId);
+    const vectorMatches = await this.findByEmbedding(
+      embedding,
+      questionText,
+      preferredUstadzId,
+    );
     if (vectorMatches.length === 0) return [];
 
     const chunkIds = vectorMatches.map((m) => m.id);
-    const db = this.prisma as any;
 
-    const mentions = await db.entityMention.findMany({
+    const mentions = await this.prisma.entityMention.findMany({
       where: { corpusChunkId: { in: chunkIds } },
       include: {
         entity: {
@@ -72,18 +84,18 @@ export class CorpusRetrievalService {
     });
 
     const neighborEntityIds = new Set<string>();
-    for (const mention of mentions as any[]) {
-      for (const rel of mention.entity.sourceRelations as any[]) {
-        neighborEntityIds.add(rel.targetId as string);
+    for (const mention of mentions) {
+      for (const rel of mention.entity.sourceRelations) {
+        neighborEntityIds.add(rel.targetId);
       }
-      for (const rel of mention.entity.targetRelations as any[]) {
-        neighborEntityIds.add(rel.sourceId as string);
+      for (const rel of mention.entity.targetRelations) {
+        neighborEntityIds.add(rel.sourceId);
       }
     }
 
     if (neighborEntityIds.size === 0) return vectorMatches;
 
-    const neighborMentions = await db.entityMention.findMany({
+    const neighborMentions = await this.prisma.entityMention.findMany({
       where: {
         entityId: { in: [...neighborEntityIds] },
         corpusChunkId: { notIn: chunkIds },
@@ -92,7 +104,7 @@ export class CorpusRetrievalService {
     });
 
     const neighborChunkIds = [
-      ...new Set((neighborMentions as any[]).map((m: any) => m.corpusChunkId as string)),
+      ...new Set(neighborMentions.map((m) => m.corpusChunkId)),
     ];
 
     if (neighborChunkIds.length === 0) return vectorMatches;
@@ -105,7 +117,10 @@ export class CorpusRetrievalService {
     const seen = new Set(chunkIds);
     const uniqueNeighbors = neighborChunks.filter((c) => !seen.has(c.id));
 
-    return [...vectorMatches, ...(uniqueNeighbors as CorpusMatch[])].slice(0, 10);
+    return [...vectorMatches, ...(uniqueNeighbors as CorpusMatch[])].slice(
+      0,
+      10,
+    );
   }
 
   private async findByEmbedding(
@@ -117,7 +132,12 @@ export class CorpusRetrievalService {
 
     const [quranResults, hadithResults] = await Promise.all([
       this.prisma.$queryRaw<
-        { id: string; content: string; topic: string | null; sourceId: string }[]
+        {
+          id: string;
+          content: string;
+          topic: string | null;
+          sourceId: string;
+        }[]
       >`
         SELECT cc.id, cc.content, cc.topic, cc."sourceId"
         FROM "CorpusChunk" cc
@@ -127,7 +147,12 @@ export class CorpusRetrievalService {
         LIMIT 3
       `,
       this.prisma.$queryRaw<
-        { id: string; content: string; topic: string | null; sourceId: string }[]
+        {
+          id: string;
+          content: string;
+          topic: string | null;
+          sourceId: string;
+        }[]
       >`
         SELECT cc.id, cc.content, cc.topic, cc."sourceId"
         FROM "CorpusChunk" cc
@@ -139,10 +164,20 @@ export class CorpusRetrievalService {
     ]);
 
     // Prefer chunks from the selected ustadz; fall back to any ustadz corpus.
-    let ustadzResults: { id: string; content: string; topic: string | null; sourceId: string }[] = [];
+    let ustadzResults: {
+      id: string;
+      content: string;
+      topic: string | null;
+      sourceId: string;
+    }[] = [];
     if (preferredUstadzId) {
       ustadzResults = await this.prisma.$queryRaw<
-        { id: string; content: string; topic: string | null; sourceId: string }[]
+        {
+          id: string;
+          content: string;
+          topic: string | null;
+          sourceId: string;
+        }[]
       >`
         SELECT cc.id, cc.content, cc.topic, cc."sourceId"
         FROM "CorpusChunk" cc
@@ -156,7 +191,12 @@ export class CorpusRetrievalService {
     }
     if (ustadzResults.length === 0) {
       ustadzResults = await this.prisma.$queryRaw<
-        { id: string; content: string; topic: string | null; sourceId: string }[]
+        {
+          id: string;
+          content: string;
+          topic: string | null;
+          sourceId: string;
+        }[]
       >`
         SELECT cc.id, cc.content, cc.topic, cc."sourceId"
         FROM "CorpusChunk" cc
@@ -189,13 +229,16 @@ export class CorpusRetrievalService {
           include: { source: true },
         });
         if (keywordChunks.length > 0) {
-          const quranHadithIds = [...quranResults, ...hadithResults].map((r) => r.id);
-          const quranHadithChunks = quranHadithIds.length > 0
-            ? await this.prisma.corpusChunk.findMany({
-                where: { id: { in: quranHadithIds } },
-                include: { source: true },
-              })
-            : [];
+          const quranHadithIds = [...quranResults, ...hadithResults].map(
+            (r) => r.id,
+          );
+          const quranHadithChunks =
+            quranHadithIds.length > 0
+              ? await this.prisma.corpusChunk.findMany({
+                  where: { id: { in: quranHadithIds } },
+                  include: { source: true },
+                })
+              : [];
           return [...quranHadithChunks, ...(keywordChunks as CorpusMatch[])];
         }
       }
@@ -254,31 +297,43 @@ export class CorpusRetrievalService {
     if (preferredUstadzId) {
       const preferredWhere: Prisma.CorpusChunkWhereInput =
         terms.length === 0
-          ? { source: { type: SourceType.USTADZ_CONTENT, reference: preferredUstadzId } }
+          ? {
+              source: {
+                type: SourceType.USTADZ_CONTENT,
+                reference: preferredUstadzId,
+              },
+            }
           : {
-              source: { type: SourceType.USTADZ_CONTENT, reference: preferredUstadzId },
+              source: {
+                type: SourceType.USTADZ_CONTENT,
+                reference: preferredUstadzId,
+              },
               OR: terms.flatMap((term) => [
                 { content: { contains: term, mode: 'insensitive' as const } },
                 { topic: { contains: term, mode: 'insensitive' as const } },
               ]),
             };
-      ustadzChunks = (await db.corpusChunk.findMany({
+      ustadzChunks = await db.corpusChunk.findMany({
         where: preferredWhere,
         take: 2,
         orderBy: { createdAt: 'desc' },
         include: { source: true },
-      })) as CorpusMatch[];
+      });
     }
     if (ustadzChunks.length === 0) {
-      ustadzChunks = (await db.corpusChunk.findMany({
+      ustadzChunks = await db.corpusChunk.findMany({
         where: baseWhere(SourceType.USTADZ_CONTENT),
         take: 1,
         orderBy: { createdAt: 'desc' },
         include: { source: true },
-      })) as CorpusMatch[];
+      });
     }
 
-    return [...(quranChunks as CorpusMatch[]), ...(hadithChunks as CorpusMatch[]), ...ustadzChunks];
+    return [
+      ...(quranChunks as CorpusMatch[]),
+      ...(hadithChunks as CorpusMatch[]),
+      ...ustadzChunks,
+    ];
   }
 
   private extractTerms(text: string) {

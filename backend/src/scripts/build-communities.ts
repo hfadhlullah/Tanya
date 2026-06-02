@@ -8,7 +8,8 @@
  */
 import { PrismaClient } from '@prisma/client';
 
-const baseUrl = process.env.REQUESTY_BASE_URL ?? 'https://router.requesty.ai/v1';
+const baseUrl =
+  process.env.REQUESTY_BASE_URL ?? 'https://router.requesty.ai/v1';
 const apiKey = process.env.REQUESTY_API_KEY ?? '';
 const chatModel = process.env.REQUESTY_CHAT_MODEL ?? 'openai/gpt-4o-mini';
 const embeddingModel =
@@ -22,14 +23,18 @@ function headers() {
   };
 }
 
-async function complete(messages: { role: string; content: string }[]): Promise<string> {
+async function complete(
+  messages: { role: string; content: string }[],
+): Promise<string> {
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({ model: chatModel, messages }),
   });
   if (!res.ok) throw new Error(`LLM failed: ${res.status}`);
-  const json = (await res.json()) as { choices: { message: { content: string } }[] };
+  const json = (await res.json()) as {
+    choices: { message: { content: string } }[];
+  };
   return json.choices[0].message.content;
 }
 
@@ -66,15 +71,20 @@ function makeUnionFind(ids: string[]) {
 
 async function main() {
   const prisma = new PrismaClient();
-  const db = prisma as any;
 
   console.log('Loading entities and relationships...');
   const [entities, relationships] = await Promise.all([
-    db.entity.findMany({ select: { id: true, name: true, type: true, description: true } }),
-    db.relationship.findMany({ select: { sourceId: true, targetId: true } }),
+    prisma.entity.findMany({
+      select: { id: true, name: true, type: true, description: true },
+    }),
+    prisma.relationship.findMany({
+      select: { sourceId: true, targetId: true },
+    }),
   ]);
 
-  console.log(`Found ${entities.length} entities, ${relationships.length} relationships`);
+  console.log(
+    `Found ${entities.length} entities, ${relationships.length} relationships`,
+  );
 
   if (entities.length === 0) {
     console.log('No entities found. Run the worker to extract entities first.');
@@ -82,17 +92,17 @@ async function main() {
     return;
   }
 
-  const ids = (entities as any[]).map((e: any) => e.id as string);
+  const ids = entities.map((e) => e.id);
   const { find, union } = makeUnionFind(ids);
 
-  for (const rel of relationships as any[]) {
-    union(rel.sourceId as string, rel.targetId as string);
+  for (const rel of relationships) {
+    union(rel.sourceId, rel.targetId);
   }
 
   // Group entities by root
-  const groups = new Map<string, any[]>();
-  for (const entity of entities as any[]) {
-    const root = find(entity.id as string);
+  const groups = new Map<string, typeof entities>();
+  for (const entity of entities) {
+    const root = find(entity.id);
     if (!groups.has(root)) groups.set(root, []);
     groups.get(root)!.push(entity);
   }
@@ -101,16 +111,20 @@ async function main() {
     (group) => group.length >= MIN_COMMUNITY_SIZE,
   );
 
-  console.log(`Found ${communities.length} communities (min size ${MIN_COMMUNITY_SIZE})`);
+  console.log(
+    `Found ${communities.length} communities (min size ${MIN_COMMUNITY_SIZE})`,
+  );
 
   // Clear old community assignments
-  await db.entity.updateMany({ data: { communityId: null } });
-  await db.community.deleteMany({});
+  await prisma.entity.updateMany({ data: { communityId: null } });
+  await prisma.community.deleteMany({});
 
   for (let i = 0; i < communities.length; i++) {
     const group = communities[i];
-    const entityNames = (group as any[]).map((e: any) => `${e.name} (${e.type})`).join(', ');
-    console.log(`Community ${i + 1}/${communities.length}: ${group.length} entities`);
+    const entityNames = group.map((e) => `${e.name} (${e.type})`).join(', ');
+    console.log(
+      `Community ${i + 1}/${communities.length}: ${group.length} entities`,
+    );
 
     let summary: string;
     let title: string;
@@ -138,7 +152,7 @@ async function main() {
       // Non-fatal
     }
 
-    const community = await db.community.create({
+    const community = await prisma.community.create({
       data: { title, summary, level: 0 },
       select: { id: true },
     });
@@ -152,9 +166,9 @@ async function main() {
       `;
     }
 
-    await db.entity.updateMany({
-      where: { id: { in: (group as any[]).map((e: any) => e.id as string) } },
-      data: { communityId: community.id as string },
+    await prisma.entity.updateMany({
+      where: { id: { in: group.map((e) => e.id) } },
+      data: { communityId: community.id },
     });
   }
 

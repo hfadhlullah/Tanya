@@ -26,7 +26,7 @@ describe('WorkerService', () => {
       id: 'job-1',
       type: JobType.CORPUS_EMBEDDING,
       payload: { corpusChunkId: 'chunk-1' },
-    } as Awaited<ReturnType<JobsService['claimNextJob']>>);
+    } as unknown as Awaited<ReturnType<JobsService['claimNextJob']>>);
 
     (mockPrisma.corpusChunk.findUnique as jest.Mock).mockResolvedValue({
       id: 'chunk-1',

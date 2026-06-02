@@ -37,11 +37,6 @@ export class QuestionsService {
         ? true
         : await this.isConversationalMessage(text);
 
-    const userPrefs = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { preferredUstadzIds: true },
-    });
-
     const questionStatus = classification.isSensitive
       ? QuestionStatus.ANSWERED_VERIFIED
       : QuestionStatus.RECEIVED;

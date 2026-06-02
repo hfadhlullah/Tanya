@@ -329,7 +329,7 @@ export class UstadzService {
         const chunk = await tx.corpusChunk.create({
           data: {
             sourceId: source.id,
-            content: dto.body!.trim(),
+            content: dto.body.trim(),
             topic: answer.question.text.slice(0, 200),
             metadata: {
               answerId,
