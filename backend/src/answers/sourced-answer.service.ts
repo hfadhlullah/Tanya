@@ -238,13 +238,22 @@ export class SourcedAnswerService {
       return { body: raw.trim(), usedMatches: labelled.map((l) => l.match) };
     }
 
-    const body = raw.replace(sumberMatch[0], '').trim();
+    let body = raw.replace(sumberMatch[0], '').trim();
     const usedMarkers = new Set(
       (sumberMatch[1].match(/S\d+/gi) ?? []).map((m) => m.toUpperCase()),
     );
     const usedMatches = labelled
       .filter((l) => usedMarkers.has(l.marker))
       .map((l) => l.match);
+
+    // Replace inline markers like (S1), [S1], or S1 with actual citation labels.
+    const markerMap = new Map(
+      labelled.map((l) => [l.marker.toUpperCase(), this.getCitationLabel(l.match)]),
+    );
+    body = body.replace(/[\[(]?(S\d+)[\])]?/gi, (_, m: string) => {
+      const label = markerMap.get(m.toUpperCase());
+      return label ? `(${label})` : `(${m})`;
+    });
 
     return { body, usedMatches };
   }
