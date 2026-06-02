@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors } from '../../theme/ui-reference';
+import { useColors } from '../../theme/ThemeContext';
 
 const SUGGESTIONS = [
   {
@@ -25,15 +25,21 @@ interface Props {
 }
 
 export function SuggestionChips({ onSelect }: Props) {
+  const c = useColors();
   return (
     <View style={s.root}>
-      <Text style={s.label}>Mulai dari sini</Text>
+      <Text style={[s.label, { color: c.muted }]}>Mulai dari sini</Text>
       {SUGGESTIONS.map((item) => (
-        <TouchableOpacity key={item.label} style={s.chip} onPress={() => onSelect(item.fill)} activeOpacity={0.7}>
+        <TouchableOpacity
+          key={item.label}
+          style={[s.chip, { backgroundColor: c.white, borderColor: c.line }]}
+          onPress={() => onSelect(item.fill)}
+          activeOpacity={0.7}
+        >
           <View style={s.icon}>
-            <Ionicons name={item.icon} size={18} color={colors.emeraldDark} />
+            <Ionicons name={item.icon} size={18} color={c.emeraldDark} />
           </View>
-          <Text style={s.text}>{item.label}</Text>
+          <Text style={[s.text, { color: c.ink }]}>{item.label}</Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -48,7 +54,6 @@ const s = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: colors.muted,
     fontWeight: '600',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -60,10 +65,8 @@ const s = StyleSheet.create({
     gap: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: colors.white,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.line,
   },
   icon: {
     width: 28,
@@ -71,7 +74,6 @@ const s = StyleSheet.create({
   },
   text: {
     fontSize: 15,
-    color: colors.ink,
     fontWeight: '500',
   },
 });

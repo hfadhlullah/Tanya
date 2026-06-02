@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, TouchableOpacity, type StyleProp, type ViewStyle } from 'react-native';
-import { colors } from '../../theme/ui-reference';
+import { useColors } from '../../theme/ThemeContext';
 
 interface Props {
   name: React.ComponentProps<typeof Ionicons>['name'];
@@ -10,10 +10,11 @@ interface Props {
   size?: number;
 }
 
-export function IconButton({ name, onPress, style, color = colors.ink, size = 24 }: Props) {
+export function IconButton({ name, onPress, style, color, size = 24 }: Props) {
+  const c = useColors();
   return (
     <TouchableOpacity style={[styles.btn, style]} onPress={onPress} activeOpacity={0.7} hitSlop={8}>
-      <Ionicons name={name} size={size} color={color} />
+      <Ionicons name={name} size={size} color={color ?? c.ink} />
     </TouchableOpacity>
   );
 }

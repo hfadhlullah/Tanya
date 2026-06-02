@@ -55,6 +55,16 @@ export class AuthService {
     return this.prisma.user.findUnique({ where: { id: payload.sub } });
   }
 
+  async updateMe(userId: string, dto: { displayName?: string }) {
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.displayName !== undefined && { displayName: dto.displayName }),
+      },
+    });
+    return this.toPublic(updated);
+  }
+
   async getPreferences(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

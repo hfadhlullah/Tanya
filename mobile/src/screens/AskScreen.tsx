@@ -6,7 +6,8 @@ import {
   type Question,
   type QuestionIntentHint,
 } from '../api/questions';
-import { getStoredUser, logout, type AuthUser } from '../api/auth';
+import { getStoredUser, logout, type AuthUser, USER_KEY } from '../api/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AskTemplate } from '../components/templates/AskTemplate';
 
 const SENSITIVE_QUESTION_REFUSAL = {
@@ -254,6 +255,11 @@ export function AskScreen({ onResetAuth, onBack }: Props) {
     }
   }
 
+  async function handleUserUpdated(updated: AuthUser) {
+    setUser(updated);
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+  }
+
   async function handleLogout() {
     await logout();
     onResetAuth?.();
@@ -303,6 +309,7 @@ export function AskScreen({ onResetAuth, onBack }: Props) {
       onLoginPress={() => setShowLoginGate(true)}
       onEditQuestion={handleEditQuestion}
       onDeleteSession={handleDeleteSession}
+      onUserUpdated={handleUserUpdated}
       newAnswerIds={newAnswerIds}
       onBack={onBack}
     />

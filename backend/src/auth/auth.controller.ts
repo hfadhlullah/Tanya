@@ -34,6 +34,12 @@ class LoginDto {
   password!: string;
 }
 
+class UpdateMeDto {
+  @IsOptional()
+  @IsString()
+  displayName?: string;
+}
+
 class UpdatePreferencesDto {
   @IsArray()
   @IsString({ each: true })
@@ -63,6 +69,12 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: CurrentUserType) {
     return user;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me')
+  updateMe(@CurrentUser() user: CurrentUserType, @Body() dto: UpdateMeDto) {
+    return this.authService.updateMe(user.id, dto);
   }
 
   @UseGuards(JwtAuthGuard)

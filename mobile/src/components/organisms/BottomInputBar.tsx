@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { colors } from '../../theme/ui-reference';
+import { useColors } from '../../theme/ThemeContext';
 
 interface Props {
   loading: boolean;
@@ -21,6 +21,7 @@ interface Props {
 
 export function BottomInputBar({ loading, prefill, onSubmit, onPrefillConsumed, guestBlocked }: Props) {
   const [text, setText] = useState('');
+  const c = useColors();
 
   if (prefill && text !== prefill) {
     setText(prefill);
@@ -29,7 +30,7 @@ export function BottomInputBar({ loading, prefill, onSubmit, onPrefillConsumed, 
 
   function handleSend() {
     if (guestBlocked) {
-      onSubmit(''); // AskScreen will intercept and show login gate
+      onSubmit('');
       return;
     }
     const trimmed = text.trim();
@@ -43,13 +44,19 @@ export function BottomInputBar({ loading, prefill, onSubmit, onPrefillConsumed, 
   if (guestBlocked) {
     return (
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <TouchableOpacity style={s.blockedBanner} onPress={handleSend} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[s.blockedBanner, { backgroundColor: c.emeraldSoft, borderTopColor: c.emerald }]}
+          onPress={handleSend}
+          activeOpacity={0.85}
+        >
           <Text style={s.blockedIcon}>🔒</Text>
           <View style={s.blockedText}>
-            <Text style={s.blockedTitle}>Daftar untuk lanjut bertanya</Text>
-            <Text style={s.blockedSub}>Pertanyaan gratis sudah digunakan. Buat akun untuk terus bertanya.</Text>
+            <Text style={[s.blockedTitle, { color: c.ink }]}>Daftar untuk lanjut bertanya</Text>
+            <Text style={[s.blockedSub, { color: c.muted }]}>Pertanyaan gratis sudah digunakan. Buat akun untuk terus bertanya.</Text>
           </View>
-          <Text style={s.blockedCta}>Daftar</Text>
+          <Text style={[s.blockedCta, { color: c.emeraldDark, backgroundColor: c.white }]}>
+            Daftar
+          </Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     );
@@ -57,12 +64,12 @@ export function BottomInputBar({ loading, prefill, onSubmit, onPrefillConsumed, 
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={s.container}>
-        <View style={s.pill}>
+      <View style={[s.container, { backgroundColor: c.paper, borderTopColor: c.line }]}>
+        <View style={[s.pill, { backgroundColor: c.white, borderColor: c.line }]}>
           <TextInput
-            style={s.input}
+            style={[s.input, { color: c.ink }]}
             placeholder="Tanya apa saja..."
-            placeholderTextColor={colors.muted}
+            placeholderTextColor={c.muted}
             value={text}
             onChangeText={setText}
             multiline
@@ -71,7 +78,7 @@ export function BottomInputBar({ loading, prefill, onSubmit, onPrefillConsumed, 
             returnKeyType="default"
           />
           <TouchableOpacity
-            style={[s.sendBtn, canSend && s.sendBtnActive]}
+            style={[s.sendBtn, { backgroundColor: c.line }, canSend && { backgroundColor: c.emerald }]}
             onPress={handleSend}
             disabled={!canSend}
             activeOpacity={0.85}
@@ -79,7 +86,7 @@ export function BottomInputBar({ loading, prefill, onSubmit, onPrefillConsumed, 
             <Ionicons
               name="arrow-up-outline"
               size={18}
-              color={canSend ? colors.white : colors.muted}
+              color={canSend ? '#fff' : c.muted}
             />
           </TouchableOpacity>
         </View>
@@ -93,17 +100,13 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingBottom: Platform.OS === 'ios' ? 8 : 12,
-    backgroundColor: colors.paper,
     borderTopWidth: 1,
-    borderTopColor: colors.line,
   },
   pill: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: colors.white,
     borderRadius: 26,
     borderWidth: 1.5,
-    borderColor: colors.line,
     paddingLeft: 18,
     paddingRight: 6,
     paddingVertical: 6,
@@ -112,38 +115,31 @@ const s = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: colors.ink,
     maxHeight: 120,
     paddingVertical: 8,
     lineHeight: 22,
   },
   sendBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: colors.line,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 2,
   },
-  sendBtnActive: { backgroundColor: colors.emerald },
 
-  // guest blocked state
   blockedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: colors.emeraldSoft,
     borderTopWidth: 1,
-    borderTopColor: colors.emerald,
     paddingHorizontal: 16,
     paddingVertical: 14,
     paddingBottom: Platform.OS === 'ios' ? 20 : 14,
   },
   blockedIcon: { fontSize: 20 },
   blockedText: { flex: 1 },
-  blockedTitle: { fontSize: 14, fontWeight: '700', color: colors.ink },
-  blockedSub: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  blockedTitle: { fontSize: 14, fontWeight: '700' },
+  blockedSub: { fontSize: 12, marginTop: 2 },
   blockedCta: {
-    fontSize: 13, fontWeight: '700', color: colors.emeraldDark,
-    backgroundColor: colors.white,
+    fontSize: 13, fontWeight: '700',
     paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: 99,
     overflow: 'hidden',

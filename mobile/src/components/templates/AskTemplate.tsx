@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   FlatList,
@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { type AuthUser } from '../../api/auth';
 import { type Answer, type Question } from '../../api/questions';
 import { type ChatSession } from '../../screens/AskScreen';
+import { useColors } from '../../theme/ThemeContext';
 import { colors } from '../../theme/ui-reference';
 import { BottomInputBar } from '../organisms/BottomInputBar';
 import { LoginGateModal } from '../organisms/LoginGateModal';
@@ -43,6 +44,7 @@ type AskTemplateProps = {
   onLoginPress: () => void;
   onEditQuestion: (question: Question) => void;
   onDeleteSession: (sessionId: string) => void;
+  onUserUpdated: (u: AuthUser) => void;
   newAnswerIds: Set<string>;
   guestBlocked?: boolean;
   onBack?: () => void;
@@ -68,10 +70,12 @@ export function AskTemplate({
   onLoginPress,
   onEditQuestion,
   onDeleteSession,
+  onUserUpdated,
   newAnswerIds,
   guestBlocked,
   onBack,
 }: AskTemplateProps) {
+  const c = useColors();
   const listRef = useRef<FlatList>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -89,8 +93,8 @@ export function AskTemplate({
   }
 
   return (
-    <SafeAreaView style={s.root}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={[s.root, { backgroundColor: c.bg }]}>
+      <StatusBar style="auto" />
 
       <SidebarDrawer
         visible={sidebarOpen}
@@ -103,17 +107,18 @@ export function AskTemplate({
         onLogout={onLogout}
         onLoginPress={onLoginPress}
         onDeleteSession={onDeleteSession}
+        onUserUpdated={onUserUpdated}
       />
 
       {/* Top bar */}
-      <View style={s.topBar}>
+      <View style={[s.topBar, { backgroundColor: c.bg }]}>
         {onBack ? (
           <IconButton name="arrow-back-outline" onPress={onBack} style={s.iconBtn} />
         ) : (
           <IconButton name="menu-outline" onPress={() => setSidebarOpen(true)} style={s.iconBtn} />
         )}
-        <Text style={s.logo}>
-          Tanya<Text style={s.logoAccent}>.</Text>
+        <Text style={[s.logo, { color: c.ink }]}>
+          Tanya<Text style={[s.logoAccent, { color: c.emerald }]}>.</Text>
         </Text>
         <View style={s.iconBtn} />
       </View>
@@ -122,11 +127,11 @@ export function AskTemplate({
       {questions.length === 0 ? (
         <View style={s.emptyArea}>
           <View style={s.emptyHero}>
-            <Text style={s.emptyTitle}>
+            <Text style={[s.emptyTitle, { color: c.ink }]}>
               Mau tanya soal{'\n'}Islam?{' '}
-              <Text style={s.emptyTitleAccent}>Sini.</Text>
+              <Text style={[s.emptyTitleAccent, { color: c.emeraldDark }]}>Sini.</Text>
             </Text>
-            <Text style={s.emptySubtitle}>Jawaban dari Quran & Sunnah, ditinjau ustadz.</Text>
+            <Text style={[s.emptySubtitle, { color: c.muted }]}>Jawaban dari Quran & Sunnah, ditinjau ustadz.</Text>
           </View>
           <SuggestionChips onSelect={onSuggestionSelect} />
         </View>
@@ -151,15 +156,19 @@ export function AskTemplate({
             )}
             ListHeaderComponent={
               <View style={s.listHeader}>
-                <Text style={s.listHeaderText}>Riwayat pertanyaan</Text>
+                <Text style={[s.listHeaderText, { color: c.muted }]}>Riwayat pertanyaan</Text>
               </View>
             }
           />
 
           {/* Floating scroll-to-bottom button */}
           {showScrollBtn && (
-            <TouchableOpacity style={s.scrollBtn} onPress={scrollToBottom} activeOpacity={0.8}>
-              <Ionicons name="arrow-down" size={18} color={colors.white} />
+            <TouchableOpacity
+              style={[s.scrollBtn, { backgroundColor: c.ink, shadowColor: c.ink }]}
+              onPress={scrollToBottom}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-down" size={18} color={c.white} />
             </TouchableOpacity>
           )}
         </View>
@@ -197,6 +206,7 @@ function QuestionTurn({
   newAnswerIds: Set<string>;
   pendingMode: 'conversation' | 'rag';
 }) {
+  const c = useColors();
   const answer =
     question.answers?.find((a) => a.status === 'VERIFIED') ??
     question.answers?.[0];
@@ -206,16 +216,16 @@ function QuestionTurn({
       <View style={s.turn}>
         {/* Question bubble — right aligned */}
         <View style={s.bubbleRow}>
-          <View style={s.bubble}>
-            <Text style={s.bubbleText}>{question.text}</Text>
+          <View style={[s.bubble, { backgroundColor: c.white, borderColor: c.line }]}>
+            <Text style={[s.bubbleText, { color: c.ink }]}>{question.text}</Text>
             <View style={s.bubbleFooter}>
               <TouchableOpacity
-                style={s.editBtn}
+                style={[s.editBtn, { borderColor: c.line }]}
                 onPress={() => onEdit(question)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="pencil-outline" size={11} color={colors.muted} />
-                <Text style={s.editBtnText}>Edit</Text>
+                <Ionicons name="pencil-outline" size={11} color={c.muted} />
+                <Text style={[s.editBtnText, { color: c.muted }]}>Edit</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -234,7 +244,7 @@ function QuestionTurn({
         )}
       </View>
 
-      {showDivider && <View style={s.divider} />}
+      {showDivider && <View style={[s.divider, { backgroundColor: c.line }]} />}
     </View>
   );
 }
@@ -248,6 +258,7 @@ function ProcessingIndicator({
   isSensitive: boolean;
   mode: 'conversation' | 'rag';
 }) {
+  const c = useColors();
   const dot1 = useRef(new Animated.Value(0.25)).current;
   const dot2 = useRef(new Animated.Value(0.25)).current;
   const dot3 = useRef(new Animated.Value(0.25)).current;
@@ -279,11 +290,11 @@ function ProcessingIndicator({
   return (
     <View style={s.processingRow}>
       <View style={s.dots}>
-        <Animated.View style={[s.dot, { opacity: dot1 }]} />
-        <Animated.View style={[s.dot, { opacity: dot2 }]} />
-        <Animated.View style={[s.dot, { opacity: dot3 }]} />
+        <Animated.View style={[s.dot, { opacity: dot1, backgroundColor: c.emerald }]} />
+        <Animated.View style={[s.dot, { opacity: dot2, backgroundColor: c.emerald }]} />
+        <Animated.View style={[s.dot, { opacity: dot3, backgroundColor: c.emerald }]} />
       </View>
-      <Text style={s.processingText}>{label}</Text>
+      <Text style={[s.processingText, { color: c.muted }]}>{label}</Text>
     </View>
   );
 }
@@ -292,144 +303,37 @@ function ProcessingIndicator({
 
 const TYPEWRITER_SPEED = 12; // ms per character
 
-const markdownStyles: MarkdownProps['style'] = {
-  body: {
-    fontFamily: 'Georgia, serif',
-    fontSize: 15,
-    lineHeight: 26,
-    color: colors.ink,
-  },
-  paragraph: {
-    marginTop: 0,
-    marginBottom: 14,
-  },
-  heading1: {
-    fontFamily: 'Georgia, serif',
-    fontSize: 24,
-    lineHeight: 30,
-    color: colors.ink,
-    fontWeight: '700',
-    marginTop: 6,
-    marginBottom: 12,
-  },
-  heading2: {
-    fontFamily: 'Georgia, serif',
-    fontSize: 21,
-    lineHeight: 28,
-    color: colors.ink,
-    fontWeight: '700',
-    marginTop: 4,
-    marginBottom: 10,
-  },
-  heading3: {
-    fontFamily: 'Georgia, serif',
-    fontSize: 18,
-    lineHeight: 24,
-    color: colors.ink,
-    fontWeight: '700',
-    marginTop: 4,
-    marginBottom: 10,
-  },
-  heading4: {
-    fontFamily: 'Georgia, serif',
-    fontSize: 16,
-    lineHeight: 22,
-    color: colors.ink,
-    fontWeight: '700',
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  heading5: {
-    fontFamily: 'Georgia, serif',
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.ink,
-    fontWeight: '700',
-    marginTop: 2,
-    marginBottom: 8,
-  },
-  heading6: {
-    fontFamily: 'Georgia, serif',
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.muted,
-    fontWeight: '700',
-    marginTop: 2,
-    marginBottom: 8,
-  },
-  strong: {
-    fontWeight: '700',
-    color: colors.ink,
-  },
-  em: {
-    fontStyle: 'italic',
-  },
-  bullet_list: {
-    marginTop: 0,
-    marginBottom: 14,
-  },
-  ordered_list: {
-    marginTop: 0,
-    marginBottom: 14,
-  },
-  list_item: {
-    marginTop: 0,
-    marginBottom: 8,
-  },
-  blockquote: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.emerald,
-    paddingLeft: 12,
-    marginLeft: 0,
-    marginRight: 0,
-    marginTop: 2,
-    marginBottom: 14,
-    opacity: 0.95,
-  },
-  code_inline: {
-    backgroundColor: colors.emeraldSoft,
-    color: colors.emeraldDark,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  code_block: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 2,
-    marginBottom: 14,
-    color: colors.ink,
-  },
-  fence: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 2,
-    marginBottom: 14,
-    color: colors.ink,
-  },
-  link: {
-    color: colors.emeraldDark,
-    textDecorationLine: 'underline',
-  },
-  hr: {
-    backgroundColor: colors.line,
-    height: 1,
-    marginVertical: 14,
-  },
-};
+function makeMarkdownStyles(c: ReturnType<typeof useColors>): MarkdownProps['style'] {
+  return {
+    body: { fontFamily: 'Georgia, serif', fontSize: 15, lineHeight: 26, color: c.ink },
+    paragraph: { marginTop: 0, marginBottom: 14 },
+    heading1: { fontFamily: 'Georgia, serif', fontSize: 24, lineHeight: 30, color: c.ink, fontWeight: '700', marginTop: 6, marginBottom: 12 },
+    heading2: { fontFamily: 'Georgia, serif', fontSize: 21, lineHeight: 28, color: c.ink, fontWeight: '700', marginTop: 4, marginBottom: 10 },
+    heading3: { fontFamily: 'Georgia, serif', fontSize: 18, lineHeight: 24, color: c.ink, fontWeight: '700', marginTop: 4, marginBottom: 10 },
+    heading4: { fontFamily: 'Georgia, serif', fontSize: 16, lineHeight: 22, color: c.ink, fontWeight: '700', marginTop: 4, marginBottom: 8 },
+    heading5: { fontFamily: 'Georgia, serif', fontSize: 15, lineHeight: 22, color: c.ink, fontWeight: '700', marginTop: 2, marginBottom: 8 },
+    heading6: { fontFamily: 'Georgia, serif', fontSize: 14, lineHeight: 20, color: c.muted, fontWeight: '700', marginTop: 2, marginBottom: 8 },
+    strong: { fontWeight: '700', color: c.ink },
+    em: { fontStyle: 'italic' },
+    bullet_list: { marginTop: 0, marginBottom: 14 },
+    ordered_list: { marginTop: 0, marginBottom: 14 },
+    list_item: { marginTop: 0, marginBottom: 8 },
+    blockquote: { borderLeftWidth: 3, borderLeftColor: c.emerald, paddingLeft: 12, marginLeft: 0, marginRight: 0, marginTop: 2, marginBottom: 14, opacity: 0.95 },
+    code_inline: { backgroundColor: c.emeraldSoft, color: c.emeraldDark, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
+    code_block: { backgroundColor: c.white, borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 12, marginTop: 2, marginBottom: 14, color: c.ink },
+    fence: { backgroundColor: c.white, borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 12, marginTop: 2, marginBottom: 14, color: c.ink },
+    link: { color: c.emeraldDark, textDecorationLine: 'underline' },
+    hr: { backgroundColor: c.line, height: 1, marginVertical: 14 },
+  };
+}
 
 function AnswerMarkdown({ content, showCursor }: { content: string; showCursor: boolean }) {
+  const c = useColors();
+  const mdStyles = useMemo(() => makeMarkdownStyles(c), [c]);
   return (
     <View style={s.answerTextWrap}>
       <Markdown
-        style={markdownStyles}
+        style={mdStyles}
         onLinkPress={(url) => {
           Linking.openURL(url);
           return true;
@@ -437,7 +341,7 @@ function AnswerMarkdown({ content, showCursor }: { content: string; showCursor: 
       >
         {content}
       </Markdown>
-      {showCursor ? <Text style={s.cursor}>|</Text> : null}
+      {showCursor ? <Text style={[s.cursor, { color: c.ink }]}>|</Text> : null}
     </View>
   );
 }
@@ -453,6 +357,7 @@ function AnswerBlock({
   isSensitiveQuestion: boolean;
   questionCreatedAt?: string;
 }) {
+  const c = useColors();
   const [displayed, setDisplayed] = useState(animate ? '' : answer.body);
   const [done, setDone] = useState(!animate);
   const [liked, setLiked] = useState<'up' | 'down' | null>(null);
@@ -525,8 +430,8 @@ function AnswerBlock({
       {/* Source label — sits between question and answer prose */}
       {shouldShowSourceRow && (
         <View style={s.sourceRow}>
-          <View style={[s.sourceBar, s.sourceBarCorpus]} />
-          <Text style={s.sourceText}>{sourceLabel}</Text>
+          <View style={[s.sourceBar, { backgroundColor: c.emerald }]} />
+          <Text style={[s.sourceText, { color: c.muted }]}>{sourceLabel}</Text>
         </View>
       )}
 
@@ -536,9 +441,9 @@ function AnswerBlock({
       {/* Ustadz verification note */}
       {done && isVerified && ustadzName && (
         <View style={s.ustadzNote}>
-          <Text style={s.ustadzNoteText}>
+          <Text style={[s.ustadzNoteText, { color: c.emeraldDark }]}>
             ✓ Ditinjau oleh{' '}
-            <Text style={s.sourceUstadzName}>{ustadzName}</Text>
+            <Text style={[s.sourceUstadzName, { color: c.ink }]}>{ustadzName}</Text>
           </Text>
         </View>
       )}
@@ -547,10 +452,10 @@ function AnswerBlock({
       {done && !isVerified && answer.citations?.length > 0 && (
         <View style={s.citationsRow}>
           {answer.citations
-            .filter((c, i, arr) => arr.findIndex((x) => x.label === c.label) === i)
-            .map((c) => (
-              <View key={c.id} style={s.citationPill}>
-                <Text style={s.citationPillText}>{c.label}</Text>
+            .filter((cit, i, arr) => arr.findIndex((x) => x.label === cit.label) === i)
+            .map((cit) => (
+              <View key={cit.id} style={[s.citationPill, { backgroundColor: c.emeraldSoft }]}>
+                <Text style={[s.citationPillText, { color: c.emeraldDark }]}>{cit.label}</Text>
               </View>
             ))}
         </View>
@@ -559,30 +464,34 @@ function AnswerBlock({
       {/* Actions row — copy / thumbs up / thumbs down */}
       {done && (
         <View style={s.actionsRow}>
-          <TouchableOpacity style={s.actionCopy} onPress={handleCopy} activeOpacity={0.7}>
-            <Ionicons name="copy-outline" size={13} color={colors.muted} />
-            <Text style={s.actionCopyText}>{copied ? 'Tersalin' : 'Salin'}</Text>
+          <TouchableOpacity
+            style={[s.actionCopy, { backgroundColor: c.white, borderColor: c.line }]}
+            onPress={handleCopy}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="copy-outline" size={13} color={c.muted} />
+            <Text style={[s.actionCopyText, { color: c.muted }]}>{copied ? 'Tersalin' : 'Salin'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[s.actionIcon, liked === 'up' && s.actionIconActive]}
+            style={[s.actionIcon, { backgroundColor: c.white, borderColor: c.line }, liked === 'up' && { borderColor: c.emerald, backgroundColor: c.emeraldSoft }]}
             onPress={() => setLiked((v) => (v === 'up' ? null : 'up'))}
             activeOpacity={0.7}
           >
             <Ionicons
               name={liked === 'up' ? 'thumbs-up' : 'thumbs-up-outline'}
               size={15}
-              color={liked === 'up' ? colors.emerald : colors.muted}
+              color={liked === 'up' ? c.emerald : c.muted}
             />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[s.actionIcon, liked === 'down' && s.actionIconActive]}
+            style={[s.actionIcon, { backgroundColor: c.white, borderColor: c.line }, liked === 'down' && { borderColor: c.emerald, backgroundColor: c.emeraldSoft }]}
             onPress={() => setLiked((v) => (v === 'down' ? null : 'down'))}
             activeOpacity={0.7}
           >
             <Ionicons
               name={liked === 'down' ? 'thumbs-down' : 'thumbs-down-outline'}
               size={15}
-              color={liked === 'down' ? colors.ink : colors.muted}
+              color={liked === 'down' ? c.ink : c.muted}
             />
           </TouchableOpacity>
         </View>

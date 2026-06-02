@@ -58,6 +58,19 @@ export async function login(email: string, password: string) {
   return data as { token: string; user: AuthUser };
 }
 
+export async function updateMe(displayName: string): Promise<AuthUser> {
+  const token = await getStoredToken();
+  if (!token) throw new Error('Sesi habis.');
+  const res = await fetch(`${apiUrl}/auth/me`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify({ displayName }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message ?? 'Gagal memperbarui profil.');
+  return data as AuthUser;
+}
+
 export async function logout() {
   await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
 }

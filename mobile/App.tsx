@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ThemeProvider } from './src/theme/ThemeContext';
 import { getStoredToken, getStoredUser, guestLogin, type AuthUser } from './src/api/auth';
 import { getMyProfile } from './src/api/ustadz';
 import { OnboardingScreen } from './src/screens/onboarding/OnboardingScreen';
@@ -23,6 +24,14 @@ type Screen =
   | 'ustadz_ask';
 
 export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}
+
+function AppContent() {
   const [screen, setScreen] = useState<Screen>('loading');
   const [sessionKey, setSessionKey] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<ReviewAnswer | null>(null);
