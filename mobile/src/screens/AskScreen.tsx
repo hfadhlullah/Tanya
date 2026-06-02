@@ -233,11 +233,13 @@ export function AskScreen({ onResetAuth, onBack }: Props) {
 
   function handleNewChat() {
     setCurrentSessionId(makeSessionId());
+    setNewAnswerIds(new Set());
     setPrefill(undefined);
   }
 
   function handleSessionSelect(sessionId: string) {
     setCurrentSessionId(sessionId);
+    setNewAnswerIds(new Set());
   }
 
   function handleEditQuestion(question: Question) {
