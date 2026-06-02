@@ -31,12 +31,81 @@ export class CorpusRetrievalService {
     preferredUstadzId?: string,
   ) {
     if (embedding && embedding.length > 0) {
-      const vectorMatches = await this.findByEmbedding(embedding, questionText, preferredUstadzId);
-      if (vectorMatches.length > 0) {
-        return vectorMatches;
+      if (process.env.ENABLE_GRAPH_RAG === 'true') {
+        const graphMatches = await this.findByEmbeddingWithGraph(
+          embedding,
+          questionText,
+          preferredUstadzId,
+        );
+        if (graphMatches.length > 0) return graphMatches;
+      } else {
+        const vectorMatches = await this.findByEmbedding(embedding, questionText, preferredUstadzId);
+        if (vectorMatches.length > 0) {
+          return vectorMatches;
+        }
       }
     }
     return this.findByKeyword(questionText, tx, preferredUstadzId);
+  }
+
+  private async findByEmbeddingWithGraph(
+    embedding: number[],
+    questionText: string,
+    preferredUstadzId?: string,
+  ): Promise<CorpusMatch[]> {
+    const vectorMatches = await this.findByEmbedding(embedding, questionText, preferredUstadzId);
+    if (vectorMatches.length === 0) return [];
+
+    const chunkIds = vectorMatches.map((m) => m.id);
+    const db = this.prisma as any;
+
+    const mentions = await db.entityMention.findMany({
+      where: { corpusChunkId: { in: chunkIds } },
+      include: {
+        entity: {
+          include: {
+            sourceRelations: { select: { targetId: true } },
+            targetRelations: { select: { sourceId: true } },
+          },
+        },
+      },
+    });
+
+    const neighborEntityIds = new Set<string>();
+    for (const mention of mentions as any[]) {
+      for (const rel of mention.entity.sourceRelations as any[]) {
+        neighborEntityIds.add(rel.targetId as string);
+      }
+      for (const rel of mention.entity.targetRelations as any[]) {
+        neighborEntityIds.add(rel.sourceId as string);
+      }
+    }
+
+    if (neighborEntityIds.size === 0) return vectorMatches;
+
+    const neighborMentions = await db.entityMention.findMany({
+      where: {
+        entityId: { in: [...neighborEntityIds] },
+        corpusChunkId: { notIn: chunkIds },
+      },
+      select: { corpusChunkId: true },
+    });
+
+    const neighborChunkIds = [
+      ...new Set((neighborMentions as any[]).map((m: any) => m.corpusChunkId as string)),
+    ];
+
+    if (neighborChunkIds.length === 0) return vectorMatches;
+
+    const neighborChunks = await this.prisma.corpusChunk.findMany({
+      where: { id: { in: neighborChunkIds } },
+      include: { source: true },
+    });
+
+    const seen = new Set(chunkIds);
+    const uniqueNeighbors = neighborChunks.filter((c) => !seen.has(c.id));
+
+    return [...vectorMatches, ...(uniqueNeighbors as CorpusMatch[])].slice(0, 10);
   }
 
   private async findByEmbedding(

@@ -54,6 +54,7 @@ enum AuditAction {
 enum JobType {
   CORPUS_EMBEDDING
   ANALYTICS_AGGREGATION
+  GRAPH_EXTRACTION
 }
 
 enum JobStatus {
@@ -178,15 +179,16 @@ model Source {
 }
 
 model CorpusChunk {
-  id        String                    @id @default(cuid())
-  sourceId  String
-  source    Source                    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  content   String
-  topic     String?
-  metadata  Json?
-  embedding Unsupported("vector(1536)")?
-  createdAt DateTime                  @default(now())
-  jobs      BackgroundJob[]
+  id             String                    @id @default(cuid())
+  sourceId       String
+  source         Source                    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  content        String
+  topic          String?
+  metadata       Json?
+  embedding      Unsupported("vector(1536)")?
+  createdAt      DateTime                  @default(now())
+  jobs           BackgroundJob[]
+  entityMentions EntityMention[]
 
   @@index([sourceId])
   @@index([topic])
@@ -265,4 +267,58 @@ model AnalyticsEvent {
 
   @@index([name, createdAt])
   @@index([userId])
+}
+
+model Entity {
+  id              String          @id @default(cuid())
+  name            String
+  type            String
+  description     String?
+  embedding       Unsupported("vector(1536)")?
+  communityId     String?
+  community       Community?      @relation(fields: [communityId], references: [id])
+  createdAt       DateTime        @default(now())
+  mentions        EntityMention[]
+  sourceRelations Relationship[]  @relation("RelationshipSource")
+  targetRelations Relationship[]  @relation("RelationshipTarget")
+
+  @@unique([name, type])
+  @@index([type])
+  @@index([communityId])
+}
+
+model EntityMention {
+  id            String      @id @default(cuid())
+  entityId      String
+  corpusChunkId String
+  entity        Entity      @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  corpusChunk   CorpusChunk @relation(fields: [corpusChunkId], references: [id], onDelete: Cascade)
+
+  @@unique([entityId, corpusChunkId])
+  @@index([corpusChunkId])
+  @@index([entityId])
+}
+
+model Relationship {
+  id          String   @id @default(cuid())
+  sourceId    String
+  targetId    String
+  type        String
+  weight      Float    @default(1.0)
+  description String?
+  source      Entity   @relation("RelationshipSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target      Entity   @relation("RelationshipTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@index([targetId])
+}
+
+model Community {
+  id        String   @id @default(cuid())
+  title     String
+  summary   String
+  level     Int      @default(0)
+  embedding Unsupported("vector(1536)")?
+  createdAt DateTime @default(now())
+  entities  Entity[]
 }

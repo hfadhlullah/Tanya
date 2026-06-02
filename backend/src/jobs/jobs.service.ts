@@ -22,6 +22,17 @@ export class JobsService {
     });
   }
 
+  enqueueGraphExtraction(corpusChunkId: string, tx: JobDelegate = this.prisma) {
+    return tx.backgroundJob.create({
+      data: {
+        type: JobType.GRAPH_EXTRACTION,
+        status: JobStatus.PENDING,
+        corpusChunkId,
+        payload: { corpusChunkId },
+      },
+    });
+  }
+
   async claimNextJob(tx: PrismaTx = this.prisma) {
     return tx.$transaction(async (transaction) => {
       const now = new Date();
