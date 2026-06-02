@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { type CorpusChunk, type Source, type Prisma } from '@prisma/client';
+import { type CorpusChunk, type Source, type Prisma, SourceType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LlmClientService } from './llm-client.service';
 
@@ -105,8 +105,8 @@ export class CorpusRetrievalService {
       const terms = this.extractTerms(questionText);
       if (terms.length > 0) {
         const sourceWhere: Prisma.SourceWhereInput = preferredUstadzId
-          ? { type: 'USTADZ_CONTENT', reference: preferredUstadzId }
-          : { type: 'USTADZ_CONTENT' };
+          ? { type: SourceType.USTADZ_CONTENT, reference: preferredUstadzId }
+          : { type: SourceType.USTADZ_CONTENT };
         const keywordChunks = await this.prisma.corpusChunk.findMany({
           where: {
             source: sourceWhere,
@@ -154,7 +154,7 @@ export class CorpusRetrievalService {
     const terms = this.extractTerms(questionText);
     const db = tx as typeof this.prisma;
 
-    const baseWhere = (type: string): Prisma.CorpusChunkWhereInput =>
+    const baseWhere = (type: SourceType): Prisma.CorpusChunkWhereInput =>
       terms.length === 0
         ? { source: { type } }
         : {
@@ -167,13 +167,13 @@ export class CorpusRetrievalService {
 
     const [quranChunks, hadithChunks] = await Promise.all([
       db.corpusChunk.findMany({
-        where: baseWhere('QURAN'),
+        where: baseWhere(SourceType.QURAN),
         take: terms.length === 0 ? 1 : 3,
         orderBy: { createdAt: 'desc' },
         include: { source: true },
       }),
       db.corpusChunk.findMany({
-        where: baseWhere('HADITH'),
+        where: baseWhere(SourceType.HADITH),
         take: terms.length === 0 ? 1 : 3,
         orderBy: { createdAt: 'desc' },
         include: { source: true },
@@ -185,9 +185,9 @@ export class CorpusRetrievalService {
     if (preferredUstadzId) {
       const preferredWhere: Prisma.CorpusChunkWhereInput =
         terms.length === 0
-          ? { source: { type: 'USTADZ_CONTENT', reference: preferredUstadzId } }
+          ? { source: { type: SourceType.USTADZ_CONTENT, reference: preferredUstadzId } }
           : {
-              source: { type: 'USTADZ_CONTENT', reference: preferredUstadzId },
+              source: { type: SourceType.USTADZ_CONTENT, reference: preferredUstadzId },
               OR: terms.flatMap((term) => [
                 { content: { contains: term, mode: 'insensitive' as const } },
                 { topic: { contains: term, mode: 'insensitive' as const } },
@@ -202,7 +202,7 @@ export class CorpusRetrievalService {
     }
     if (ustadzChunks.length === 0) {
       ustadzChunks = (await db.corpusChunk.findMany({
-        where: baseWhere('USTADZ_CONTENT'),
+        where: baseWhere(SourceType.USTADZ_CONTENT),
         take: 1,
         orderBy: { createdAt: 'desc' },
         include: { source: true },

@@ -472,24 +472,26 @@ function AnswerBlock({
     return secs > 0 ? secs : null;
   })();
 
-  const hasUstadzCorpus = answer.citations?.some(
+  const ustadzCorpusCitation = answer.citations?.find(
     (c) => c.source?.type === 'USTADZ_CONTENT',
   );
+  const hasUstadzCorpus = !!ustadzCorpusCitation;
+  // corpus citation label is "Ustadz Ali" — strip "Ustadz " prefix to get name
+  const corpusUstadzName = ustadzCorpusCitation?.label?.replace(/^Ustadz\s+/i, '');
 
-  const sourceLabel = answer.label
-    ?? (isSensitiveQuestion
-      ? 'Pertanyaan sensitif · tidak dapat dijawab'
-      : isVerified
-        ? ustadzName
-          ? `Dari Al-Qur'an & Sunnah · Sudah ditinjau oleh ustadz ${ustadzName}`
-          : "Dari Al-Qur'an & Sunnah · Sudah ditinjau ustadz"
-        : answer.citations?.length > 0
-          ? hasUstadzCorpus
-            ? "Dari Al-Qur'an, Sunnah & Ustadz · belum diverifikasi"
-            : "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz"
-          : thinkingSecs
-            ? `Berpikir selama ${thinkingSecs} detik`
-            : 'Jawaban AI · belum ditinjau ustadz');
+  const effectiveUstadzName = ustadzName ?? corpusUstadzName;
+
+  const sourceLabel = isSensitiveQuestion
+    ? 'Pertanyaan sensitif · tidak dapat dijawab'
+    : isVerified || hasUstadzCorpus
+      ? effectiveUstadzName
+        ? `Dari Al-Qur'an, Sunnah & Sudah ditinjau oleh Ustadz ${effectiveUstadzName}`
+        : "Dari Al-Qur'an, Sunnah & Sudah ditinjau ustadz"
+      : answer.citations?.length > 0
+        ? "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz"
+        : thinkingSecs
+          ? `Berpikir selama ${thinkingSecs} detik`
+          : (answer.label ?? 'Jawaban AI · belum ditinjau ustadz');
 
   async function handleCopy() {
     const ok = await Clipboard.setStringAsync(answer.body);

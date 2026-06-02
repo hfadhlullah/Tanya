@@ -281,7 +281,11 @@ export class UstadzService {
             : AuditAction.ANSWER_APPROVED,
           entity: 'Answer',
           entityId: answerId,
-          metadata: { verifyingUstadzId: profile.id },
+          metadata: {
+            verifyingUstadzId: profile.id,
+            questionText: answer.question.text,
+            reviewedBody: dto.body?.trim() || verifiedAnswer.body,
+          },
         },
       });
 

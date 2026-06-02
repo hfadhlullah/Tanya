@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { SensitiveRuleScope, UserRole, UstadzStatus } from '@prisma/client';
+import { AuditAction, SensitiveRuleScope, UserRole, UstadzStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUstadzDto } from './dto/create-ustadz.dto';
@@ -53,25 +53,47 @@ export class AdminService {
       madhhab?: string;
     },
   ) {
-    return this.prisma.ustadzProfile.update({
-      where: { id: profileId },
-      data: {
-        ...(dto.publicName && { publicName: dto.publicName.trim() }),
-        bio: dto.bio?.trim() ?? undefined,
-        credentials: dto.credentials?.trim() ?? undefined,
-        publicProfile: dto.publicProfile?.trim() ?? undefined,
-        specialties: dto.specialties?.map((s) => s.trim()).filter(Boolean),
-        madhhab: dto.madhhab?.trim() ?? undefined,
-        status: UstadzStatus.APPROVED,
-      },
-      include: { user: true },
+    return this.prisma.$transaction(async (tx) => {
+      const profile = await tx.ustadzProfile.update({
+        where: { id: profileId },
+        data: {
+          ...(dto.publicName && { publicName: dto.publicName.trim() }),
+          bio: dto.bio?.trim() ?? undefined,
+          credentials: dto.credentials?.trim() ?? undefined,
+          publicProfile: dto.publicProfile?.trim() ?? undefined,
+          specialties: dto.specialties?.map((s) => s.trim()).filter(Boolean),
+          madhhab: dto.madhhab?.trim() ?? undefined,
+          status: UstadzStatus.APPROVED,
+        },
+        include: { user: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          action: AuditAction.USTADZ_APPROVED,
+          entity: 'UstadzProfile',
+          entityId: profileId,
+          metadata: { publicName: profile.publicName },
+        },
+      });
+      return profile;
     });
   }
 
-  deactivateUstadz(profileId: string) {
-    return this.prisma.ustadzProfile.update({
-      where: { id: profileId },
-      data: { status: UstadzStatus.REJECTED },
+  async deactivateUstadz(profileId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const profile = await tx.ustadzProfile.update({
+        where: { id: profileId },
+        data: { status: UstadzStatus.REJECTED },
+      });
+      await tx.auditLog.create({
+        data: {
+          action: AuditAction.USTADZ_REJECTED,
+          entity: 'UstadzProfile',
+          entityId: profileId,
+          metadata: { publicName: profile.publicName },
+        },
+      });
+      return profile;
     });
   }
 
@@ -96,36 +118,82 @@ export class AdminService {
     });
   }
 
-  createSensitiveRule(dto: UpsertSensitiveRuleDto) {
-    return this.prisma.sensitiveRule.create({
-      data: {
-        scope: dto.scope ?? SensitiveRuleScope.GLOBAL,
-        ustadzId: dto.ustadzId?.trim(),
-        topic: dto.topic.trim(),
-        pattern: dto.pattern?.trim(),
-        isActive: dto.isActive ?? true,
-      },
+  async createSensitiveRule(dto: UpsertSensitiveRuleDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const rule = await tx.sensitiveRule.create({
+        data: {
+          scope: dto.scope ?? SensitiveRuleScope.GLOBAL,
+          ustadzId: dto.ustadzId?.trim(),
+          topic: dto.topic.trim(),
+          pattern: dto.pattern?.trim(),
+          isActive: dto.isActive ?? true,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          action: AuditAction.SENSITIVE_RULE_CHANGED,
+          entity: 'SensitiveRule',
+          entityId: rule.id,
+          metadata: { change: 'created', topic: rule.topic, scope: rule.scope },
+        },
+      });
+      return rule;
     });
   }
 
-  updateSensitiveRule(ruleId: string, dto: UpsertSensitiveRuleDto) {
-    return this.prisma.sensitiveRule.update({
-      where: { id: ruleId },
-      data: {
-        scope: dto.scope,
-        ustadzId: dto.ustadzId?.trim(),
-        topic: dto.topic?.trim(),
-        pattern: dto.pattern?.trim(),
-        isActive: dto.isActive,
-      },
+  async updateSensitiveRule(ruleId: string, dto: UpsertSensitiveRuleDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const rule = await tx.sensitiveRule.update({
+        where: { id: ruleId },
+        data: {
+          scope: dto.scope,
+          ustadzId: dto.ustadzId?.trim(),
+          topic: dto.topic?.trim(),
+          pattern: dto.pattern?.trim(),
+          isActive: dto.isActive,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          action: AuditAction.SENSITIVE_RULE_CHANGED,
+          entity: 'SensitiveRule',
+          entityId: rule.id,
+          metadata: { change: 'updated', topic: rule.topic, scope: rule.scope, isActive: rule.isActive },
+        },
+      });
+      return rule;
     });
   }
 
-  listAuditLogs() {
-    return this.prisma.auditLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { actor: true },
-      take: 100,
-    });
+  async listAuditLogs(query: {
+    action?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  } = {}) {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (query.action) {
+      where.action = query.action;
+    }
+    if (query.search?.trim()) {
+      where.actor = { email: { contains: query.search.trim(), mode: 'insensitive' } };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: { actor: true },
+        skip,
+        take: limit,
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
   }
 }

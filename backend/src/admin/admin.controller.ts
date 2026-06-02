@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { IsArray, IsOptional, IsString, MaxLength } from 'class-validator';
@@ -74,7 +75,17 @@ export class AdminController {
   }
 
   @Get('audit-logs')
-  listAuditLogs() {
-    return this.adminService.listAuditLogs();
+  listAuditLogs(
+    @Query('action') action?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.listAuditLogs({
+      action,
+      search,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 }

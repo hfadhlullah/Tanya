@@ -96,7 +96,12 @@ export interface AuditLog {
   entityId: string;
   createdAt: string;
   actor: { email: string; displayName?: string | null };
-  metadata?: Record<string, unknown>;
+  metadata?: {
+    verifyingUstadzId?: string;
+    questionText?: string;
+    reviewedBody?: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface CreateUstadzPayload {
@@ -146,5 +151,15 @@ export const api = {
     }
     return req<CorpusImportResult>('/corpus/import', { method: 'POST', body: form });
   },
-  listAuditLogs: () => req<AuditLog[]>('/admin/audit-logs'),
+  listAuditLogs: (params?: { action?: string; search?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.action) qs.set('action', params.action);
+    if (params?.search) qs.set('search', params.search);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const query = qs.toString();
+    return req<{ data: AuditLog[]; total: number; page: number; limit: number }>(
+      `/admin/audit-logs${query ? '?' + query : ''}`,
+    );
+  },
 };

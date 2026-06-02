@@ -74,14 +74,15 @@ export class SourcedAnswerService {
     });
 
     const hasCorpus = usedMatches.length > 0;
+    const hasUstadzCorpus = usedMatches.some((m) => m.source.type === 'USTADZ_CONTENT');
+    const label = hasCorpus
+      ? hasUstadzCorpus
+        ? "Dari Al-Qur'an, Sunnah & Ustadz · belum diverifikasi"
+        : "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz"
+      : 'Jawaban AI · belum ditinjau ustadz';
+
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return {
-      ...answer,
-      label: hasCorpus
-        ? "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz"
-        : 'Jawaban AI · belum ditinjau ustadz',
-      verified: false,
-    };
+    return { ...answer, label, verified: false };
   }
 
   private getCitationLabel(match: CorpusMatch) {
@@ -131,7 +132,7 @@ export class SourcedAnswerService {
       {
         type: 'USTADZ_CONTENT',
         heading: 'USTADZ_REVIEW',
-        rule: 'Explain what the Ustadz review says.',
+        rule: 'If the Ustadz review context is relevant to the question, explain what it says. If the Ustadz content is unclear, unrelated, or not meaningful for this question, skip the Ustadz section entirely — do not invent an ustadz opinion.',
       },
     ];
 
@@ -198,6 +199,7 @@ export class SourcedAnswerService {
       '- After that, give one combined conclusion.\n' +
       '- Do not invent information outside the provided context.\n' +
       '- Only use context chunks that are actually relevant to the question; ignore the rest.\n' +
+      '- IMPORTANT: Never fabricate ustadz opinions. Only include an ustadz section if the Ustadz review context directly addresses the question.\n' +
       (hasUstadz
         ? ''
         : '- Do NOT mention or invent any ustadz opinion; no Ustadz review context was provided.\n') +
