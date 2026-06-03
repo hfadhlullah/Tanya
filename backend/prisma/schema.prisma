@@ -29,12 +29,23 @@ enum QuestionStatus {
 enum AnswerStatus {
   AI_PENDING
   VERIFIED
+  USTADZ_EDITED
+  USTADZ_REJECTED
+  NEEDS_REVISION
 }
 
 enum SourceType {
   QURAN
   HADITH
   USTADZ_CONTENT
+  VERIFIED_ANSWER
+}
+
+enum ReviewAction {
+  APPROVE
+  EDIT
+  REJECT
+  NEEDS_REVISION
 }
 
 enum SensitiveRuleScope {
@@ -98,6 +109,7 @@ model UstadzProfile {
   answers        Answer[]
   sensitiveRules SensitiveRule[]
   preferredQuestions Question[]
+  reviews        AnswerReview[]
 }
 
 model CredentialFile {
@@ -150,9 +162,26 @@ model Answer {
   updatedAt          DateTime       @updatedAt
   citations          Citation[]
   savedBy            SavedAnswer[]
+  reviews            AnswerReview[]
 
   @@index([status, createdAt])
   @@index([verifyingUstadzId])
+}
+
+model AnswerReview {
+  id         String        @id @default(cuid())
+  answerId   String
+  answer     Answer        @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  ustadzId   String
+  ustadz     UstadzProfile @relation(fields: [ustadzId], references: [id])
+  action     ReviewAction
+  aiBody     String
+  editedBody String?
+  note       String?
+  createdAt  DateTime      @default(now())
+
+  @@index([answerId])
+  @@index([ustadzId])
 }
 
 model Citation {

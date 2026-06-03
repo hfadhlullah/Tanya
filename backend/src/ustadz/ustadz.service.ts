@@ -8,10 +8,13 @@ import {
   AnswerStatus,
   AuditAction,
   QuestionStatus,
+  ReviewAction,
   SensitiveRuleScope,
+  SourceType,
   UserRole,
   UstadzStatus,
 } from '@prisma/client';
+import { PERSONAL_PATTERN } from '../answers/sourced-answer.service';
 import { JobsService } from '../jobs/jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -216,12 +219,7 @@ export class UstadzService {
         ? { isSensitive: true, status: QuestionStatus.ANSWERED_SOURCE }
         : filters?.type === 'non-sensitive'
           ? { isSensitive: false, status: QuestionStatus.ANSWERED_SOURCE }
-          : {
-              OR: [
-                { isSensitive: true },
-                { status: QuestionStatus.ANSWERED_SOURCE },
-              ],
-            };
+          : { status: QuestionStatus.ANSWERED_SOURCE };
 
     const dateFilter =
       filters?.date === 'today'
@@ -267,12 +265,41 @@ export class UstadzService {
         throw new BadRequestException('Answer is already verified');
       }
 
+      const editedBody = dto.body?.trim() || null;
+      const note = dto.note?.trim() || null;
+
+      // Derive the review action: explicit > inferred from an edit.
+      const action: ReviewAction =
+        dto.action ?? (editedBody ? ReviewAction.EDIT : ReviewAction.APPROVE);
+
+      const isVerified =
+        action === ReviewAction.APPROVE || action === ReviewAction.EDIT;
+
+      const newStatus: AnswerStatus =
+        action === ReviewAction.APPROVE
+          ? AnswerStatus.VERIFIED
+          : action === ReviewAction.EDIT
+            ? AnswerStatus.USTADZ_EDITED
+            : action === ReviewAction.REJECT
+              ? AnswerStatus.USTADZ_REJECTED
+              : AnswerStatus.NEEDS_REVISION;
+
+      // The trusted final text: ustadz edit if present, otherwise the AI answer.
+      const finalBody =
+        action === ReviewAction.EDIT && editedBody ? editedBody : answer.body;
+
       const verifiedAnswer = await tx.answer.update({
         where: { id: answerId },
         data: {
-          status: AnswerStatus.VERIFIED,
-          verifyingUstadzId: profile.id,
-          verifiedAt: new Date(),
+          status: newStatus,
+          // Surface the edited text as the displayed answer; the original AI
+          // body is preserved in the AnswerReview snapshot below.
+          ...(action === ReviewAction.EDIT && editedBody
+            ? { body: editedBody }
+            : {}),
+          ...(isVerified
+            ? { verifyingUstadzId: profile.id, verifiedAt: new Date() }
+            : {}),
         },
         include: {
           citations: { include: { source: true } },
@@ -288,15 +315,31 @@ export class UstadzService {
         },
       });
 
+      // Structured review record: original AI answer, ustadz edit, and feedback.
+      await tx.answerReview.create({
+        data: {
+          answerId,
+          ustadzId: profile.id,
+          action,
+          aiBody: answer.body,
+          editedBody,
+          note,
+        },
+      });
+
       await tx.question.update({
         where: { id: answer.questionId },
-        data: { status: QuestionStatus.ANSWERED_VERIFIED },
+        data: {
+          status: isVerified
+            ? QuestionStatus.ANSWERED_VERIFIED
+            : QuestionStatus.ANSWERED_SOURCE,
+        },
       });
 
       await tx.auditLog.create({
         data: {
           actorId: userId,
-          action: dto.body?.trim()
+          action: editedBody
             ? AuditAction.ANSWER_EDITED
             : AuditAction.ANSWER_APPROVED,
           entity: 'Answer',
@@ -304,22 +347,32 @@ export class UstadzService {
           metadata: {
             verifyingUstadzId: profile.id,
             questionText: answer.question.text,
-            reviewedBody: dto.body?.trim() || verifiedAnswer.body,
+            reviewAction: action,
+            note,
+            reviewedBody: finalBody,
           },
         },
       });
 
-      if (dto.body?.trim() && dto.body.trim().length >= 20) {
-        const sourceTitle = `Ustadz ${profile.publicName}`;
+      // Learning loop: feed verified answers back into the reusable corpus so
+      // the app gets smarter as more ustadz review. Only for approve/edit, and
+      // only for general (non-sensitive, non-personal) questions.
+      const isReusable =
+        isVerified &&
+        finalBody.length >= 20 &&
+        !answer.question.isSensitive &&
+        !PERSONAL_PATTERN.test(answer.question.text.toLowerCase());
+
+      if (isReusable) {
         let source = await tx.source.findFirst({
-          where: { type: 'USTADZ_CONTENT', reference: profile.id },
+          where: { type: SourceType.VERIFIED_ANSWER, reference: profile.id },
         });
 
         if (!source) {
           source = await tx.source.create({
             data: {
-              type: 'USTADZ_CONTENT',
-              title: sourceTitle,
+              type: SourceType.VERIFIED_ANSWER,
+              title: `Jawaban terverifikasi · Ustadz ${profile.publicName}`,
               reference: profile.id,
               language: answer.language ?? 'id',
             },
@@ -329,13 +382,14 @@ export class UstadzService {
         const chunk = await tx.corpusChunk.create({
           data: {
             sourceId: source.id,
-            content: dto.body.trim(),
+            content: finalBody,
             topic: answer.question.text.slice(0, 200),
             metadata: {
               answerId,
               questionId: answer.questionId,
               verifyingUstadzId: profile.id,
               verifiedAt: new Date().toISOString(),
+              reviewAction: action,
               citationLabel: `Ustadz ${profile.publicName}`,
             },
           },
@@ -344,7 +398,7 @@ export class UstadzService {
         await this.jobs.enqueueCorpusEmbedding(chunk.id, tx);
       }
 
-      return { ...verifiedAnswer, verified: true };
+      return { ...verifiedAnswer, verified: isVerified };
     });
   }
 

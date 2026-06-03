@@ -130,7 +130,7 @@ export class CorpusRetrievalService {
   ): Promise<CorpusMatch[]> {
     const vectorLiteral = `[${embedding.join(',')}]`;
 
-    const [quranResults, hadithResults] = await Promise.all([
+    const [quranResults, hadithResults, verifiedResults] = await Promise.all([
       this.prisma.$queryRaw<
         {
           id: string;
@@ -160,6 +160,23 @@ export class CorpusRetrievalService {
         WHERE cc.embedding IS NOT NULL AND s.type = 'HADITH'::"SourceType"
         ORDER BY cc.embedding <=> ${vectorLiteral}::vector
         LIMIT 3
+      `,
+      // Previously ustadz-verified answers — reusable, trusted above raw ustadz
+      // content (brief #15).
+      this.prisma.$queryRaw<
+        {
+          id: string;
+          content: string;
+          topic: string | null;
+          sourceId: string;
+        }[]
+      >`
+        SELECT cc.id, cc.content, cc.topic, cc."sourceId"
+        FROM "CorpusChunk" cc
+        JOIN "Source" s ON s.id = cc."sourceId"
+        WHERE cc.embedding IS NOT NULL AND s.type = 'VERIFIED_ANSWER'::"SourceType"
+        ORDER BY cc.embedding <=> ${vectorLiteral}::vector
+        LIMIT 2
       `,
     ]);
 
@@ -229,22 +246,29 @@ export class CorpusRetrievalService {
           include: { source: true },
         });
         if (keywordChunks.length > 0) {
-          const quranHadithIds = [...quranResults, ...hadithResults].map(
-            (r) => r.id,
-          );
-          const quranHadithChunks =
-            quranHadithIds.length > 0
+          const baseIds = [
+            ...quranResults,
+            ...hadithResults,
+            ...verifiedResults,
+          ].map((r) => r.id);
+          const baseChunks =
+            baseIds.length > 0
               ? await this.prisma.corpusChunk.findMany({
-                  where: { id: { in: quranHadithIds } },
+                  where: { id: { in: baseIds } },
                   include: { source: true },
                 })
               : [];
-          return [...quranHadithChunks, ...(keywordChunks as CorpusMatch[])];
+          return [...baseChunks, ...(keywordChunks as CorpusMatch[])];
         }
       }
     }
 
-    const allResults = [...quranResults, ...hadithResults, ...ustadzResults];
+    const allResults = [
+      ...quranResults,
+      ...hadithResults,
+      ...verifiedResults,
+      ...ustadzResults,
+    ];
     if (allResults.length === 0) return [];
 
     const seen = new Set<string>();
@@ -277,7 +301,7 @@ export class CorpusRetrievalService {
             ]),
           };
 
-    const [quranChunks, hadithChunks] = await Promise.all([
+    const [quranChunks, hadithChunks, verifiedChunks] = await Promise.all([
       db.corpusChunk.findMany({
         where: baseWhere(SourceType.QURAN),
         take: terms.length === 0 ? 1 : 3,
@@ -287,6 +311,12 @@ export class CorpusRetrievalService {
       db.corpusChunk.findMany({
         where: baseWhere(SourceType.HADITH),
         take: terms.length === 0 ? 1 : 3,
+        orderBy: { createdAt: 'desc' },
+        include: { source: true },
+      }),
+      db.corpusChunk.findMany({
+        where: baseWhere(SourceType.VERIFIED_ANSWER),
+        take: 2,
         orderBy: { createdAt: 'desc' },
         include: { source: true },
       }),
@@ -332,6 +362,7 @@ export class CorpusRetrievalService {
     return [
       ...(quranChunks as CorpusMatch[]),
       ...(hadithChunks as CorpusMatch[]),
+      ...(verifiedChunks as CorpusMatch[]),
       ...ustadzChunks,
     ];
   }

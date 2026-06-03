@@ -117,11 +117,20 @@ export async function flagAnswer(answerId: string) {
   return data;
 }
 
-export async function verifyAnswer(answerId: string, body?: string) {
+export type ReviewAction = 'APPROVE' | 'EDIT' | 'REJECT' | 'NEEDS_REVISION';
+
+export async function verifyAnswer(
+  answerId: string,
+  opts?: { body?: string; note?: string; action?: ReviewAction },
+) {
   const res = await fetch(`${apiUrl}/ustadz/answers/${answerId}/verify`, {
     method: 'PATCH',
     headers: await headers(),
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({
+      body: opts?.body,
+      note: opts?.note,
+      action: opts?.action,
+    }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message ?? 'Verifikasi gagal.');

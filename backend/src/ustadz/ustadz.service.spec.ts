@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UstadzStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { JobsService } from '../jobs/jobs.service';
 import { UstadzService } from './ustadz.service';
 
 describe('UstadzService', () => {
@@ -19,11 +20,22 @@ describe('UstadzService', () => {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
     },
     question: {
       update: jest.fn(),
     },
     auditLog: {
+      create: jest.fn(),
+    },
+    answerReview: {
+      create: jest.fn(),
+    },
+    source: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
+    corpusChunk: {
       create: jest.fn(),
     },
     sensitiveRule: {
@@ -32,6 +44,8 @@ describe('UstadzService', () => {
     },
     $transaction: jest.fn(),
   };
+
+  const jobs = { enqueueCorpusEmbedding: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -45,6 +59,7 @@ describe('UstadzService', () => {
           provide: StorageService,
           useValue: { store: jest.fn(), delete: jest.fn(), getUrl: jest.fn() },
         },
+        { provide: JobsService, useValue: jobs },
       ],
     }).compile();
 
@@ -100,7 +115,7 @@ describe('UstadzService', () => {
       status: UstadzStatus.APPROVED,
     });
 
-    await expect(service.getDashboard('user-1')).resolves.toEqual({
+    await expect(service.getDashboard('user-1')).resolves.toMatchObject({
       profile: { id: 'ustadz-1', status: UstadzStatus.APPROVED },
       locked: false,
     });
@@ -162,20 +177,26 @@ describe('UstadzService', () => {
       body: 'Draft',
       status: 'AI_PENDING',
       questionId: 'question-1',
+      language: 'id',
+      question: { text: 'Bagaimana hukum salat?', isSensitive: false },
     });
     prisma.answer.update.mockResolvedValue({
       id: 'answer-1',
-      status: 'VERIFIED',
+      status: 'USTADZ_EDITED',
     });
 
     await expect(
       service.verifyAnswer('user-1', 'answer-1', { body: 'Edited' }),
-    ).resolves.toEqual({ id: 'answer-1', status: 'VERIFIED', verified: true });
+    ).resolves.toEqual({
+      id: 'answer-1',
+      status: 'USTADZ_EDITED',
+      verified: true,
+    });
     expect(prisma.answer.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           body: 'Edited',
-          status: 'VERIFIED',
+          status: 'USTADZ_EDITED',
           verifyingUstadzId: 'ustadz-1',
           verifiedAt: expect.any(Date),
         }),
@@ -185,6 +206,17 @@ describe('UstadzService', () => {
       where: { id: 'question-1' },
       data: { status: 'ANSWERED_VERIFIED' },
     });
+    expect(prisma.answerReview.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          answerId: 'answer-1',
+          ustadzId: 'ustadz-1',
+          action: 'EDIT',
+          aiBody: 'Draft',
+          editedBody: 'Edited',
+        }),
+      }),
+    );
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -217,6 +249,8 @@ describe('UstadzService', () => {
       body: 'Original',
       status: 'AI_PENDING',
       questionId: 'question-1',
+      language: 'id',
+      question: { text: 'Bagaimana hukum salat?', isSensitive: false },
     });
     prisma.answer.update.mockResolvedValue({
       id: 'answer-1',
@@ -230,5 +264,96 @@ describe('UstadzService', () => {
         data: expect.objectContaining({ action: 'ANSWER_APPROVED' }),
       }),
     );
+    expect(prisma.answerReview.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: 'APPROVE', aiBody: 'Original' }),
+      }),
+    );
+  });
+
+  it('embeds approved general answer into VERIFIED_ANSWER corpus', async () => {
+    prisma.ustadzProfile.findUnique.mockResolvedValue({
+      id: 'ustadz-1',
+      publicName: 'Ali',
+      status: UstadzStatus.APPROVED,
+    });
+    prisma.answer.findUnique.mockResolvedValue({
+      id: 'answer-1',
+      body: 'Jawaban panjang yang sudah benar dan layak dipakai ulang.',
+      status: 'AI_PENDING',
+      questionId: 'question-1',
+      language: 'id',
+      question: { text: 'Bagaimana hukum puasa sunnah?', isSensitive: false },
+    });
+    prisma.answer.update.mockResolvedValue({ id: 'answer-1', status: 'VERIFIED' });
+    prisma.source.findFirst.mockResolvedValue(null);
+    prisma.source.create.mockResolvedValue({ id: 'source-va' });
+    prisma.corpusChunk.create.mockResolvedValue({ id: 'chunk-va' });
+
+    await service.verifyAnswer('user-1', 'answer-1', {});
+
+    expect(prisma.source.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: 'VERIFIED_ANSWER' }),
+      }),
+    );
+    expect(prisma.corpusChunk.create).toHaveBeenCalled();
+    expect(jobs.enqueueCorpusEmbedding).toHaveBeenCalledWith('chunk-va', prisma);
+  });
+
+  it('does not embed sensitive or personal answers into corpus', async () => {
+    prisma.ustadzProfile.findUnique.mockResolvedValue({
+      id: 'ustadz-1',
+      publicName: 'Ali',
+      status: UstadzStatus.APPROVED,
+    });
+    prisma.answer.findUnique.mockResolvedValue({
+      id: 'answer-1',
+      body: 'Jawaban panjang yang sudah benar dan layak dipakai ulang.',
+      status: 'AI_PENDING',
+      questionId: 'question-1',
+      language: 'id',
+      question: { text: 'aku bingung dan ingin berhenti pacaran', isSensitive: false },
+    });
+    prisma.answer.update.mockResolvedValue({ id: 'answer-1', status: 'VERIFIED' });
+
+    await service.verifyAnswer('user-1', 'answer-1', {});
+
+    expect(prisma.corpusChunk.create).not.toHaveBeenCalled();
+    expect(jobs.enqueueCorpusEmbedding).not.toHaveBeenCalled();
+  });
+
+  it('rejects answer without verifying or embedding', async () => {
+    prisma.ustadzProfile.findUnique.mockResolvedValue({
+      id: 'ustadz-1',
+      publicName: 'Ali',
+      status: UstadzStatus.APPROVED,
+    });
+    prisma.answer.findUnique.mockResolvedValue({
+      id: 'answer-1',
+      body: 'Jawaban panjang yang sudah benar dan layak dipakai ulang.',
+      status: 'AI_PENDING',
+      questionId: 'question-1',
+      language: 'id',
+      question: { text: 'Bagaimana hukum puasa sunnah?', isSensitive: false },
+    });
+    prisma.answer.update.mockResolvedValue({
+      id: 'answer-1',
+      status: 'USTADZ_REJECTED',
+    });
+
+    const result = await service.verifyAnswer('user-1', 'answer-1', {
+      action: 'REJECT' as any,
+      note: 'Tidak akurat',
+    });
+
+    expect(result.verified).toBe(false);
+    expect(prisma.answer.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'USTADZ_REJECTED' }),
+      }),
+    );
+    expect(prisma.corpusChunk.create).not.toHaveBeenCalled();
+    expect(jobs.enqueueCorpusEmbedding).not.toHaveBeenCalled();
   });
 });

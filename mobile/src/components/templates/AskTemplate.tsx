@@ -380,7 +380,8 @@ function AnswerBlock({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answer.id]);
 
-  const isVerified = answer.status === 'VERIFIED';
+  const isEdited = answer.status === 'USTADZ_EDITED';
+  const isVerified = answer.status === 'VERIFIED' || isEdited;
   const ustadzName =
     answer.verifyingUstadz?.status === 'APPROVED'
       ? answer.verifyingUstadz.publicName
@@ -394,7 +395,9 @@ function AnswerBlock({
   })();
 
   const ustadzCorpusCitation = answer.citations?.find(
-    (c) => c.source?.type === 'USTADZ_CONTENT',
+    (c) =>
+      c.source?.type === 'USTADZ_CONTENT' ||
+      c.source?.type === 'VERIFIED_ANSWER',
   );
   const hasUstadzCorpus = !!ustadzCorpusCitation;
   // corpus citation label is "Ustadz Ali" — strip "Ustadz " prefix to get name
@@ -402,15 +405,16 @@ function AnswerBlock({
 
   const effectiveUstadzName = ustadzName ?? corpusUstadzName;
   const hasCitations = (answer.citations?.length ?? 0) > 0;
+  const isConversational = isVerified && !hasCitations && !answer.label;
   const shouldShowSourceRow =
-    isSensitiveQuestion || isVerified || hasUstadzCorpus || hasCitations || !!answer.label;
+    !isConversational && (isSensitiveQuestion || isVerified || hasUstadzCorpus || hasCitations || !!answer.label);
 
   const sourceLabel = isSensitiveQuestion
     ? 'Pertanyaan sensitif · tidak dapat dijawab'
     : isVerified || hasUstadzCorpus
       ? effectiveUstadzName
-        ? `Dari Al-Qur'an, Sunnah & Sudah ditinjau oleh Ustadz ${effectiveUstadzName}`
-        : "Dari Al-Qur'an, Sunnah & Sudah ditinjau ustadz"
+        ? `Dari Al-Qur'an, Sunnah & ${isEdited ? 'Diperbaiki' : 'Sudah ditinjau'} oleh Ustadz ${effectiveUstadzName}`
+        : `Dari Al-Qur'an, Sunnah & ${isEdited ? 'Diperbaiki' : 'Sudah ditinjau'} ustadz`
       : hasCitations
         ? "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz"
       : thinkingSecs
@@ -442,7 +446,7 @@ function AnswerBlock({
       {done && isVerified && ustadzName && (
         <View style={s.ustadzNote}>
           <Text style={[s.ustadzNoteText, { color: c.emeraldDark }]}>
-            ✓ Ditinjau oleh{' '}
+            ✓ {isEdited ? 'Diperbaiki & ditinjau oleh' : 'Ditinjau oleh'}{' '}
             <Text style={[s.sourceUstadzName, { color: c.ink }]}>{ustadzName}</Text>
           </Text>
         </View>

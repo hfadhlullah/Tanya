@@ -35,8 +35,8 @@ describe('CorpusRetrievalService', () => {
 
     await service.findSourceMatches('Bagaimana cara salat?');
 
-    // Called 3 times: QURAN, HADITH, USTADZ_CONTENT
-    expect(prisma.corpusChunk.findMany).toHaveBeenCalledTimes(3);
+    // Called 4 times: QURAN, HADITH, VERIFIED_ANSWER, USTADZ_CONTENT
+    expect(prisma.corpusChunk.findMany).toHaveBeenCalledTimes(4);
     expect(prisma.corpusChunk.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ source: { type: 'QURAN' } }),
@@ -45,6 +45,11 @@ describe('CorpusRetrievalService', () => {
     expect(prisma.corpusChunk.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ source: { type: 'HADITH' } }),
+      }),
+    );
+    expect(prisma.corpusChunk.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ source: { type: 'VERIFIED_ANSWER' } }),
       }),
     );
   });

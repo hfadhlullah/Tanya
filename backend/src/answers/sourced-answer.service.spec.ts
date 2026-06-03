@@ -125,7 +125,8 @@ describe('SourcedAnswerService', () => {
       data: {
         questionId: 'question-chat-1',
         body: 'Halo juga. Ada yang bisa aku bantu?',
-        status: AnswerStatus.AI_PENDING,
+        status: AnswerStatus.VERIFIED,
+        verifiedAt: expect.any(Date),
         language: 'id',
       },
       include: {
@@ -218,8 +219,9 @@ describe('SourcedAnswerService', () => {
     expect(user).not.toContain('USTADZ_REVIEW');
     expect(system).not.toContain('Ustadz review says');
     expect(system).toContain('Do NOT mention or invent any ustadz opinion');
-    expect(system).toContain('Quran context says');
-    expect(system).toContain('Hadits context says');
+    // Intent-aware prompt is in use.
+    expect(system).toContain('Detected user intent:');
+    expect(system).toContain('Return strict JSON only');
   });
 
   it('returns a generic answer with no sources when no corpus matches', async () => {

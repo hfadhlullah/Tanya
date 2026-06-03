@@ -69,7 +69,10 @@ export function UstadzReviewDetailScreen({ answer, queuePosition, onDone, onBack
     setLoading(true);
     try {
       const changed = editedBody.trim() !== answer.body.trim();
-      await verifyAnswer(answer.id, changed ? editedBody.trim() : undefined);
+      await verifyAnswer(answer.id, {
+        body: changed ? editedBody.trim() : undefined,
+        note: reviewerNote.trim() || undefined,
+      });
       setSuccess(true);
     } catch (e: any) {
       Alert.alert('Gagal', e.message);
