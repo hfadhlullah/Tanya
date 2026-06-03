@@ -333,7 +333,10 @@ export class SourcedAnswerService {
         (section) =>
           `[${section.heading}]\n` +
           section.items
-            .map((l) => `[${l.marker}] ${l.match.content.slice(0, 500)}`)
+            .map((l) => {
+              const citationLabel = this.getCitationLabel(l.match);
+              return `[${l.marker}] [Sumber: ${citationLabel}]\n${l.match.content.slice(0, 500)}`;
+            })
             .join('\n\n'),
       )
       .join('\n\n');
@@ -353,6 +356,7 @@ export class SourcedAnswerService {
     const userContent =
       historyBlock +
       `Pertanyaan:\n${questionText}\n\n` +
+      `PENTING: Setiap potongan konteks memiliki label [Sumber: ...]. Gunakan HANYA referensi dari label tersebut saat menyebut ayat atau hadits. Jangan mengarang nomor ayat atau hadits lain.\n\n` +
       `Retrieved Context (setiap potongan diberi penanda seperti [S1]):\n\n` +
       contextBlocks;
 
@@ -408,6 +412,7 @@ export class SourcedAnswerService {
       '- Use only relevant retrieved chunks; ignore unrelated ones.\n' +
       '- Do not invent information outside the provided context.\n' +
       '- Do not give a legal ruling stronger than the retrieved context supports.\n' +
+      '- CRITICAL: When mentioning Quran verses or Hadith, you MUST only use the exact reference shown in [Sumber: ...] of each retrieved chunk. Do NOT add, invent, or fill in verse numbers from your training knowledge. If a chunk has no [Sumber] label, refer to the topic only — never fabricate a verse number or hadith chain.\n' +
       '- IMPORTANT: Never fabricate ustadz opinions. Only refer to ustadz content if the Ustadz context directly addresses the question.\n' +
       (hasUstadz
         ? ''
