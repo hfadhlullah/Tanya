@@ -111,7 +111,12 @@ export class SourcedAnswerService {
       : 'Jawaban AI · belum ditinjau ustadz';
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return { ...answer, label, verified: false, corpusHits: usedMatches.length };
+    return {
+      ...answer,
+      label,
+      verified: false,
+      corpusHits: usedMatches.length,
+    };
   }
 
   async createConversationalAnswer(
@@ -388,7 +393,7 @@ export class SourcedAnswerService {
             "**Perspektif Al-Qur'an**: Explain in detail what the Quran says. Quote and explain the relevant verses from the retrieved context. At least 2–3 sentences.\n" +
             '**Perspektif Hadits**: Explain in detail what the Hadith says. Reference the retrieved hadith context fully. At least 2–3 sentences.\n' +
             (hasUstadz
-              ? "**Perspektif Ustadz**: Explain the ustadz perspective in detail if directly relevant. At least 2 sentences.\n"
+              ? '**Perspektif Ustadz**: Explain the ustadz perspective in detail if directly relevant. At least 2 sentences.\n'
               : '') +
             '**Kesimpulan**: Summarize the practical takeaway clearly in 2–3 sentences.\n' +
             'Do not skip sections that have retrieved context. Start with one direct sentence before the sections.'

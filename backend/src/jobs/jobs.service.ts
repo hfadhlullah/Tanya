@@ -106,7 +106,11 @@ export class JobsService {
         error,
         leaseExpiresAt: null,
         ...(shouldRetry
-          ? { runAfter: new Date(Date.now() + (backoffMs[attempts - 1] ?? 900_000)) }
+          ? {
+              runAfter: new Date(
+                Date.now() + (backoffMs[attempts - 1] ?? 900_000),
+              ),
+            }
           : {}),
       },
     });
