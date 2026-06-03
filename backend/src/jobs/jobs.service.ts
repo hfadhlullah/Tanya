@@ -90,10 +90,25 @@ export class JobsService {
     });
   }
 
-  failJob(jobId: string, error: string, tx: JobDelegate = this.prisma) {
+  async failJob(jobId: string, error: string, tx: JobDelegate = this.prisma) {
+    const backoffMs = [60_000, 300_000, 900_000]; // 1min, 5min, 15min
+    const job = await tx.backgroundJob.findUnique({
+      where: { id: jobId },
+      select: { attempts: true, maxAttempts: true },
+    });
+    const attempts = job?.attempts ?? maxAttempts;
+    const limit = job?.maxAttempts ?? maxAttempts;
+    const shouldRetry = attempts < limit;
     return tx.backgroundJob.update({
       where: { id: jobId },
-      data: { status: JobStatus.FAILED, error, leaseExpiresAt: null },
+      data: {
+        status: shouldRetry ? JobStatus.PENDING : JobStatus.FAILED,
+        error,
+        leaseExpiresAt: null,
+        ...(shouldRetry
+          ? { runAfter: new Date(Date.now() + (backoffMs[attempts - 1] ?? 900_000)) }
+          : {}),
+      },
     });
   }
 }

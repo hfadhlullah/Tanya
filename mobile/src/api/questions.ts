@@ -18,6 +18,7 @@ export type Answer = {
   createdAt?: string | null;
   citations: Citation[];
   verifyingUstadz?: { publicName: string; status: string } | null;
+  corpusHits?: number | null;
 };
 
 export type Question = {

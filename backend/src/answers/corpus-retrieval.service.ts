@@ -383,7 +383,7 @@ export class CorpusRetrievalService {
           .replace(/[^a-z0-9\s]/g, ' ')
           .split(/\s+/)
           .map((term) => term.trim())
-          .filter((term) => term.length >= 4)
+          .filter((term) => term.length >= 3)
           .slice(0, 6),
       ),
     );

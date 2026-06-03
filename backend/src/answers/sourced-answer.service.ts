@@ -111,7 +111,7 @@ export class SourcedAnswerService {
       : 'Jawaban AI · belum ditinjau ustadz';
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return { ...answer, label, verified: false };
+    return { ...answer, label, verified: false, corpusHits: usedMatches.length };
   }
 
   async createConversationalAnswer(
