@@ -21,6 +21,8 @@ export type IslamicQuestionIntent =
 export const PERSONAL_PATTERN =
   /\b(aku|saya|gimana caranya|bagaimana agar|bingung|takut|sedih|ingin berhenti|aku lagi|curhat)\b/;
 
+type ConversationTurn = { text: string; answer: string };
+
 type AnswerTx = CorpusTx & {
   answer: { create: (args: unknown) => Promise<any> };
 
@@ -47,6 +49,8 @@ export class SourcedAnswerService {
       preferredUstadzId?: string | null;
     },
     tx: AnswerTx,
+    history: ConversationTurn[] = [],
+    answerMode: 'fast' | 'thinking' = 'fast',
   ) {
     const embedding = await this.corpusRetrievalService.embedQuestion(
       question.text,
@@ -63,6 +67,8 @@ export class SourcedAnswerService {
       question.text,
       matches,
       intent,
+      history,
+      answerMode,
     );
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -116,6 +122,7 @@ export class SourcedAnswerService {
       preferredUstadzId?: string | null;
     },
     tx: AnswerTx,
+    history: ConversationTurn[] = [],
   ) {
     let body: string;
 
@@ -126,8 +133,15 @@ export class SourcedAnswerService {
           content:
             'You are an Islamic Q&A assistant. This user message is casual conversation, not a request for Quran, Hadith, or scholarly sourcing. ' +
             'Reply in warm, natural Indonesian like a thoughtful Muslim or Muslimah: friendly, calm, respectful, and full of adab, but not strict or preachy. ' +
-            'Keep it short, conversational, and helpful. Do not mention missing sources, corpus retrieval, or ustadz review unless the user asks about Islamic guidance.',
+            'Keep it short, conversational, and helpful. Do not mention missing sources, corpus retrieval, or ustadz review unless the user asks about Islamic guidance.' +
+            (history.length > 0
+              ? ' If the user references something from the conversation (e.g., pronouns like "itu", "tersebut"), resolve it using the conversation history.'
+              : ''),
         },
+        ...history.flatMap((t) => [
+          { role: 'user' as const, content: t.text },
+          { role: 'assistant' as const, content: t.answer },
+        ]),
         { role: 'user', content: question.text },
       ]);
     } catch {
@@ -207,6 +221,8 @@ export class SourcedAnswerService {
     questionText: string,
     matches: Awaited<ReturnType<CorpusRetrievalService['findSourceMatches']>>,
     intent: IslamicQuestionIntent = 'AMBIGUOUS',
+    history: ConversationTurn[] = [],
+    answerMode: 'fast' | 'thinking' = 'fast',
   ): Promise<{ body: string; usedMatches: CorpusMatch[] }> {
     // Tag each retrieved chunk with a stable marker (S1, S2, ...) so the LLM
     // can report exactly which sources it actually used.
@@ -268,6 +284,15 @@ export class SourcedAnswerService {
           'Be gentle and practical. Acknowledge the situation and suggest asking a qualified ustadz for the specific case.',
         AMBIGUOUS: 'Answer carefully and briefly. Do not invent details.',
       };
+      const noCorpusInstruction =
+        answerMode === 'thinking'
+          ? 'Structure your answer with the following sections. Only include a section if you have genuine knowledge to share — skip sections you cannot fill without fabricating:\n' +
+            "**Perspektif Al-Qur'an**: What the Quran teaches about this topic.\n" +
+            '**Perspektif Hadits**: Relevant prophetic guidance (well-known hadith only; do not fabricate).\n' +
+            '**Kesimpulan**: A brief, practical summary answering the question.\n' +
+            'Begin with one direct sentence answering the question. Do not invent specific verse numbers or hadith chains.'
+          : noCorpusByIntent[intent];
+
       try {
         const body = await this.llm.complete([
           {
@@ -278,8 +303,15 @@ export class SourcedAnswerService {
               'preachy. There is no retrieved corpus context for this question. ' +
               'Answer in Indonesian and do not invent Quran verses, Hadits, or ' +
               'ustadz opinions. ' +
-              noCorpusByIntent[intent],
+              noCorpusInstruction +
+              (history.length > 0
+                ? ' If the user references something from the conversation (e.g., pronouns like "itu", "tersebut"), resolve it using the conversation history.'
+                : ''),
           },
+          ...history.flatMap((t) => [
+            { role: 'user' as const, content: t.text },
+            { role: 'assistant' as const, content: t.answer },
+          ]),
           { role: 'user', content: questionText },
         ]);
         return { body: body.trim(), usedMatches: [] };
@@ -301,7 +333,20 @@ export class SourcedAnswerService {
       )
       .join('\n\n');
 
+    const historyBlock =
+      history.length > 0
+        ? 'Riwayat percakapan sebelumnya:\n' +
+          history
+            .map(
+              (t, i) =>
+                `[T${i + 1}] Pengguna: ${t.text}\nAssisten: ${t.answer}`,
+            )
+            .join('\n\n') +
+          '\n\n---\n\n'
+        : '';
+
     const userContent =
+      historyBlock +
       `Pertanyaan:\n${questionText}\n\n` +
       `Retrieved Context (setiap potongan diberi penanda seperti [S1]):\n\n` +
       contextBlocks;
@@ -331,8 +376,24 @@ export class SourcedAnswerService {
       "Always answer the user's main question in the first sentence. " +
       'For hukum/status questions, the first sentence must directly state the ruling/status. ' +
       'Never start with source explanation.\n\n' +
+      (history.length > 0
+        ? 'Conversation context:\n' +
+          'The user message may contain pronouns (itu, tersebut, hal itu, topik itu, dll.) or references to the previous conversation. ' +
+          'Resolve them using the conversation history in the user message before searching the retrieved context.\n\n'
+        : '') +
       `Detected user intent: ${intent}\n` +
-      `Output rule for this intent:\n${intentRules[intent]}\n\n` +
+      `Output rule for this intent:\n${
+        answerMode === 'thinking'
+          ? 'Structure your answer with the following sections. Only include a section if the retrieved context supports it:\n' +
+            "**Perspektif Al-Qur'an**: What the Quran context says about this topic.\n" +
+            '**Perspektif Hadits**: What the Hadith context says.\n' +
+            (hasUstadz
+              ? '**Perspektif Ustadz**: What the retrieved Ustadz content says (include only if directly relevant).\n'
+              : '') +
+            '**Kesimpulan**: A brief, practical summary that directly answers the question.\n' +
+            'Begin with one direct sentence answering the question before the sections.'
+          : intentRules[intent]
+      }\n\n` +
       'Tone & style:\n' +
       '- Answer in Indonesian.\n' +
       '- Clear, calm, natural, and narrative — like a kind Muslim friend who menjaga adab.\n' +

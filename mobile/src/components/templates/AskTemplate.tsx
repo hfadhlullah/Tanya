@@ -23,10 +23,13 @@ import { LoginGateModal } from '../organisms/LoginGateModal';
 import { SidebarDrawer } from '../organisms/SidebarDrawer';
 import { SuggestionChips } from '../molecules/SuggestionChips';
 import { IconButton } from '../atoms/IconButton';
+import { SegmentedControl } from '../atoms/SegmentedControl';
 
 type AskTemplateProps = {
   loading: boolean;
   pendingMode?: 'conversation' | 'rag';
+  answerMode?: 'fast' | 'thinking';
+  onAnswerModeChange?: (mode: 'fast' | 'thinking') => void;
   questions: Question[];
   sessions: ChatSession[];
   currentSessionId: string;
@@ -53,6 +56,8 @@ type AskTemplateProps = {
 export function AskTemplate({
   loading,
   pendingMode = 'rag',
+  answerMode = 'fast',
+  onAnswerModeChange,
   questions,
   sessions,
   currentSessionId,
@@ -171,6 +176,19 @@ export function AskTemplate({
               <Ionicons name="arrow-down" size={18} color={c.white} />
             </TouchableOpacity>
           )}
+        </View>
+      )}
+
+      {pendingMode !== 'conversation' && onAnswerModeChange && (
+        <View style={s.answerModeRow}>
+          <SegmentedControl
+            options={[
+              { value: 'fast', label: 'Cepat' },
+              { value: 'thinking', label: 'Mendalam' },
+            ]}
+            value={answerMode}
+            onChange={onAnswerModeChange}
+          />
         </View>
       )}
 
@@ -417,9 +435,11 @@ function AnswerBlock({
         : `Dari Al-Qur'an, Sunnah & ${isEdited ? 'Diperbaiki' : 'Sudah ditinjau'} ustadz`
       : hasCitations
         ? "Dari Al-Qur'an & Sunnah · belum ditinjau ustadz"
-      : thinkingSecs
-        ? `Berpikir selama ${thinkingSecs} detik`
-          : (answer.label ?? '');
+      : answer.label
+        ? answer.label
+        : thinkingSecs
+          ? `Berpikir selama ${thinkingSecs} detik`
+          : '';
 
   async function handleCopy() {
     const ok = await Clipboard.setStringAsync(answer.body);
@@ -508,6 +528,7 @@ function AnswerBlock({
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
+  answerModeRow: { paddingHorizontal: 16, paddingBottom: 4 },
 
   // top bar
   topBar: {

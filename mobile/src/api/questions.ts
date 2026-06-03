@@ -50,6 +50,7 @@ export async function createQuestion(input: {
   text: string;
   sessionId: string;
   intentHint: QuestionIntentHint;
+  answerMode?: 'fast' | 'thinking';
 }) {
   const response = await fetch(`${apiUrl}/questions`, {
     method: 'POST',
@@ -59,6 +60,7 @@ export async function createQuestion(input: {
       text: input.text,
       sessionId: input.sessionId,
       intentHint: input.intentHint,
+      answerMode: input.answerMode ?? 'fast',
     }),
   });
 

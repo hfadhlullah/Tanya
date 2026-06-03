@@ -106,6 +106,32 @@ export class QuestionsService {
 
     // LLM answer generation happens outside the transaction (no timeout risk)
 
+    const sessionHistory = dto.sessionId
+      ? await this.prisma.question.findMany({
+          where: {
+            userId,
+            sessionId: dto.sessionId.trim(),
+            id: { not: question.id },
+            deletedAt: null,
+            answers: { some: {} },
+          },
+          orderBy: { createdAt: 'asc' },
+          take: 5,
+          include: {
+            answers: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: { body: true },
+            },
+          },
+        })
+      : [];
+
+    const conversationHistory = sessionHistory.map((q) => ({
+      text: q.text,
+      answer: q.answers[0]?.body ?? '',
+    }));
+
     let answer = immediateAnswer;
     if (!classification.isSensitive) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -113,10 +139,13 @@ export class QuestionsService {
         ? await this.sourcedAnswerService.createConversationalAnswer(
             question,
             this.prisma,
+            conversationHistory,
           )
         : await this.sourcedAnswerService.createTierOneAnswer(
             question,
             this.prisma,
+            conversationHistory,
+            dto.answerMode ?? 'fast',
           );
     }
 

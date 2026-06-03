@@ -128,6 +128,7 @@ interface Props {
 export function AskScreen({ onResetAuth, onBack }: Props) {
   const [loading, setLoading] = useState(false);
   const [pendingMode, setPendingMode] = useState<PendingMode>('rag');
+  const [answerMode, setAnswerMode] = useState<'fast' | 'thinking'>('fast');
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [newAnswerIds, setNewAnswerIds] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -185,6 +186,7 @@ export function AskScreen({ onResetAuth, onBack }: Props) {
         text,
         sessionId: currentSessionId,
         intentHint,
+        answerMode: intentHint === 'conversation' ? 'fast' : answerMode,
       });
       const rawAnswer = result.answer
         ?? (result.question.isSensitive || result.route === 'ustadz_review'
@@ -291,6 +293,8 @@ export function AskScreen({ onResetAuth, onBack }: Props) {
     <AskTemplate
       loading={loading}
       pendingMode={pendingMode}
+      answerMode={answerMode}
+      onAnswerModeChange={setAnswerMode}
       guestBlocked={guestBlocked}
       questions={currentQuestions}
       sessions={sessions}

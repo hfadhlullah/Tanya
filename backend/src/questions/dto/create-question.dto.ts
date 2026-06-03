@@ -31,4 +31,9 @@ export class CreateQuestionDto {
   @IsString()
   @IsIn(['conversation', 'rag'])
   intentHint?: 'conversation' | 'rag';
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['fast', 'thinking'])
+  answerMode?: 'fast' | 'thinking';
 }

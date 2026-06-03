@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   type CorpusChunk,
   type Source,
@@ -16,6 +16,8 @@ export type CorpusTx = {
 
 @Injectable()
 export class CorpusRetrievalService {
+  private readonly logger = new Logger(CorpusRetrievalService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly llm: LlmClientService,
@@ -36,22 +38,28 @@ export class CorpusRetrievalService {
     preferredUstadzId?: string,
   ) {
     if (embedding && embedding.length > 0) {
-      if (process.env.ENABLE_GRAPH_RAG === 'true') {
-        const graphMatches = await this.findByEmbeddingWithGraph(
-          embedding,
-          questionText,
-          preferredUstadzId,
-        );
-        if (graphMatches.length > 0) return graphMatches;
-      } else {
-        const vectorMatches = await this.findByEmbedding(
-          embedding,
-          questionText,
-          preferredUstadzId,
-        );
-        if (vectorMatches.length > 0) {
-          return vectorMatches;
+      try {
+        if (process.env.ENABLE_GRAPH_RAG === 'true') {
+          const graphMatches = await this.findByEmbeddingWithGraph(
+            embedding,
+            questionText,
+            preferredUstadzId,
+          );
+          if (graphMatches.length > 0) return graphMatches;
+        } else {
+          const vectorMatches = await this.findByEmbedding(
+            embedding,
+            questionText,
+            preferredUstadzId,
+          );
+          if (vectorMatches.length > 0) {
+            return vectorMatches;
+          }
         }
+      } catch (err) {
+        this.logger.warn(
+          `Vector search failed, falling back to keyword: ${err}`,
+        );
       }
     }
     return this.findByKeyword(questionText, tx, preferredUstadzId);
