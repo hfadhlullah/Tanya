@@ -23,7 +23,6 @@ import { LoginGateModal } from '../organisms/LoginGateModal';
 import { SidebarDrawer } from '../organisms/SidebarDrawer';
 import { SuggestionChips } from '../molecules/SuggestionChips';
 import { IconButton } from '../atoms/IconButton';
-import { ModeChips } from '../atoms/ModeChips';
 
 type AskTemplateProps = {
   loading: boolean;
@@ -179,25 +178,14 @@ export function AskTemplate({
         </View>
       )}
 
-      {pendingMode !== 'conversation' && onAnswerModeChange && (
-        <View style={s.answerModeRow}>
-          <ModeChips
-            options={[
-              { value: 'fast', label: 'Cepat' },
-              { value: 'thinking', label: 'Mendalam' },
-            ]}
-            value={answerMode}
-            onChange={onAnswerModeChange}
-          />
-        </View>
-      )}
-
       <BottomInputBar
         loading={loading}
         prefill={prefill}
         onSubmit={onSubmit}
         onPrefillConsumed={onPrefillConsumed}
         guestBlocked={guestBlocked}
+        answerMode={pendingMode !== 'conversation' ? answerMode : undefined}
+        onAnswerModeChange={pendingMode !== 'conversation' ? onAnswerModeChange : undefined}
       />
 
       <LoginGateModal
@@ -528,7 +516,6 @@ function AnswerBlock({
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  answerModeRow: { paddingHorizontal: 16, paddingBottom: 6, paddingTop: 4 },
 
   // top bar
   topBar: {

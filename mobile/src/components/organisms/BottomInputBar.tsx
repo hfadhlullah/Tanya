@@ -2,14 +2,21 @@ import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { useColors } from '../../theme/ThemeContext';
+
+const MODE_OPTIONS: { value: 'fast' | 'thinking'; label: string }[] = [
+  { value: 'fast', label: 'Cepat' },
+  { value: 'thinking', label: 'Mendalam' },
+];
 
 interface Props {
   loading: boolean;
@@ -17,10 +24,13 @@ interface Props {
   onSubmit: (text: string) => void;
   onPrefillConsumed: () => void;
   guestBlocked?: boolean;
+  answerMode?: 'fast' | 'thinking';
+  onAnswerModeChange?: (mode: 'fast' | 'thinking') => void;
 }
 
-export function BottomInputBar({ loading, prefill, onSubmit, onPrefillConsumed, guestBlocked }: Props) {
+export function BottomInputBar({ loading, prefill, onSubmit, onPrefillConsumed, guestBlocked, answerMode, onAnswerModeChange }: Props) {
   const [text, setText] = useState('');
+  const [menuVisible, setMenuVisible] = useState(false);
   const c = useColors();
 
   if (prefill && text !== prefill) {
@@ -62,6 +72,8 @@ export function BottomInputBar({ loading, prefill, onSubmit, onPrefillConsumed, 
     );
   }
 
+  const currentLabel = MODE_OPTIONS.find((o) => o.value === answerMode)?.label ?? 'Cepat';
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={[s.container, { backgroundColor: c.paper, borderTopColor: c.line }]}>
@@ -77,6 +89,16 @@ export function BottomInputBar({ loading, prefill, onSubmit, onPrefillConsumed, 
             editable={!loading}
             returnKeyType="default"
           />
+          {onAnswerModeChange && (
+            <TouchableOpacity
+              style={[s.modeBtn, { borderColor: c.line }]}
+              onPress={() => setMenuVisible(true)}
+              activeOpacity={0.75}
+            >
+              <Text style={[s.modeBtnLabel, { color: c.ink }]}>{currentLabel}</Text>
+              <Ionicons name="chevron-down" size={12} color={c.muted} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[s.sendBtn, { backgroundColor: c.line }, canSend && { backgroundColor: c.emerald }]}
             onPress={handleSend}
@@ -91,6 +113,43 @@ export function BottomInputBar({ loading, prefill, onSubmit, onPrefillConsumed, 
           </TouchableOpacity>
         </View>
       </View>
+
+      {onAnswerModeChange && (
+        <Modal
+          visible={menuVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMenuVisible(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+            <View style={s.overlay}>
+              <TouchableWithoutFeedback>
+                <View style={[s.menu, { backgroundColor: c.paper, borderColor: c.line }]}>
+                  {MODE_OPTIONS.map((opt) => {
+                    const active = opt.value === answerMode;
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[s.menuItem, active && { backgroundColor: c.emeraldTint }]}
+                        onPress={() => {
+                          onAnswerModeChange(opt.value);
+                          setMenuVisible(false);
+                        }}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={[s.menuLabel, { color: c.ink }, active && { color: c.emerald, fontWeight: '700' }]}>
+                          {opt.label}
+                        </Text>
+                        {active && <Ionicons name="checkmark" size={16} color={c.emerald} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -124,6 +183,43 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 2,
   },
+  modeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 2,
+  },
+  modeBtnLabel: { fontSize: 12, fontWeight: '600' },
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === 'ios' ? 90 : 80,
+  },
+  menu: {
+    alignSelf: 'flex-end',
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+    minWidth: 140,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  menuLabel: { fontSize: 15, fontWeight: '500' },
 
   blockedBanner: {
     flexDirection: 'row',
