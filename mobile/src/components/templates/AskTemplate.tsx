@@ -23,7 +23,7 @@ import { LoginGateModal } from '../organisms/LoginGateModal';
 import { SidebarDrawer } from '../organisms/SidebarDrawer';
 import { SuggestionChips } from '../molecules/SuggestionChips';
 import { IconButton } from '../atoms/IconButton';
-import { SegmentedControl } from '../atoms/SegmentedControl';
+import { ModeChips } from '../atoms/ModeChips';
 
 type AskTemplateProps = {
   loading: boolean;
@@ -181,7 +181,7 @@ export function AskTemplate({
 
       {pendingMode !== 'conversation' && onAnswerModeChange && (
         <View style={s.answerModeRow}>
-          <SegmentedControl
+          <ModeChips
             options={[
               { value: 'fast', label: 'Cepat' },
               { value: 'thinking', label: 'Mendalam' },
@@ -528,7 +528,7 @@ function AnswerBlock({
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  answerModeRow: { paddingHorizontal: 16, paddingBottom: 4 },
+  answerModeRow: { paddingHorizontal: 16, paddingBottom: 6, paddingTop: 4 },
 
   // top bar
   topBar: {

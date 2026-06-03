@@ -286,11 +286,11 @@ export class SourcedAnswerService {
       };
       const noCorpusInstruction =
         answerMode === 'thinking'
-          ? 'Structure your answer with the following sections. Only include a section if you have genuine knowledge to share — skip sections you cannot fill without fabricating:\n' +
-            "**Perspektif Al-Qur'an**: What the Quran teaches about this topic.\n" +
-            '**Perspektif Hadits**: Relevant prophetic guidance (well-known hadith only; do not fabricate).\n' +
-            '**Kesimpulan**: A brief, practical summary answering the question.\n' +
-            'Begin with one direct sentence answering the question. Do not invent specific verse numbers or hadith chains.'
+          ? 'Write a thorough, structured answer. Use these sections (include a section only if you have genuine general knowledge — do not fabricate verse numbers or hadith chains):\n' +
+            "**Perspektif Al-Qur'an**: What the Quran generally teaches about this topic. At least 2–3 sentences.\n" +
+            '**Perspektif Hadits**: Relevant well-known prophetic guidance on this topic. At least 2–3 sentences.\n' +
+            '**Kesimpulan**: A practical summary answering the question in 2–3 sentences.\n' +
+            'Start with one direct sentence. Provide depth — do not truncate.'
           : noCorpusByIntent[intent];
 
       try {
@@ -384,14 +384,14 @@ export class SourcedAnswerService {
       `Detected user intent: ${intent}\n` +
       `Output rule for this intent:\n${
         answerMode === 'thinking'
-          ? 'Structure your answer with the following sections. Only include a section if the retrieved context supports it:\n' +
-            "**Perspektif Al-Qur'an**: What the Quran context says about this topic.\n" +
-            '**Perspektif Hadits**: What the Hadith context says.\n' +
+          ? 'Write a thorough, structured answer using ALL relevant retrieved context. Use these sections:\n' +
+            "**Perspektif Al-Qur'an**: Explain in detail what the Quran says. Quote and explain the relevant verses from the retrieved context. At least 2–3 sentences.\n" +
+            '**Perspektif Hadits**: Explain in detail what the Hadith says. Reference the retrieved hadith context fully. At least 2–3 sentences.\n' +
             (hasUstadz
-              ? '**Perspektif Ustadz**: What the retrieved Ustadz content says (include only if directly relevant).\n'
+              ? "**Perspektif Ustadz**: Explain the ustadz perspective in detail if directly relevant. At least 2 sentences.\n"
               : '') +
-            '**Kesimpulan**: A brief, practical summary that directly answers the question.\n' +
-            'Begin with one direct sentence answering the question before the sections.'
+            '**Kesimpulan**: Summarize the practical takeaway clearly in 2–3 sentences.\n' +
+            'Do not skip sections that have retrieved context. Start with one direct sentence before the sections.'
           : intentRules[intent]
       }\n\n` +
       'Tone & style:\n' +
@@ -408,8 +408,9 @@ export class SourcedAnswerService {
         ? ''
         : '- Do NOT mention or invent any ustadz opinion; no Ustadz context was provided.\n') +
       '- Do NOT say "berdasarkan konteks yang tersedia" when the sources clearly answer the question. Use uncertainty wording only when the sources are incomplete, weak, conflicting, or only partially relevant.\n\n' +
-      'Length:\n' +
-      "- Match the user's question. Short question = short answer. Detailed question = detailed answer. Do not over-answer.\n\n" +
+      (answerMode === 'thinking'
+        ? 'Length:\n- Provide a comprehensive, detailed answer. Fully develop each section — do not truncate. Depth matters more than brevity.\n\n'
+        : "Length:\n- Match the user's question. Short question = short answer. Detailed question = detailed answer. Do not over-answer.\n\n") +
       'Return strict JSON only, no markdown wrapper, in exactly this shape:\n' +
       '{"answer": "...", "usedSources": ["S1", "S2"], "intent": "' +
       intent +
