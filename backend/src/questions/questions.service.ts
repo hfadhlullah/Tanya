@@ -221,7 +221,8 @@ export class QuestionsService {
           role: 'system',
           content:
             'Klasifikasikan pesan pengguna sebagai salah satu dari dua label: CHAT atau RAG. ' +
-            'CHAT untuk sapaan, basa-basi, ucapan terima kasih, salam, atau percakapan santai yang tidak butuh rujukan Islam khusus. ' +
+            'CHAT untuk: sapaan, basa-basi, ucapan terima kasih, salam, percakapan santai yang tidak butuh rujukan Islam khusus, ' +
+            'atau permintaan untuk mempersingkat/meringkas jawaban sebelumnya (seperti "lebih singkat", "singkat aja", "persingkat", "ringkas", "in short", "tl;dr"). ' +
             'RAG untuk pertanyaan yang meminta penjelasan, hukum, dalil, panduan, nasihat Islam, atau topik yang sebaiknya dicek ke Al-Quran, Hadits, atau corpus ustadz. ' +
             'Jawab hanya dengan satu kata: CHAT atau RAG.',
         },

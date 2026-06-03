@@ -273,7 +273,9 @@ export class SourcedAnswerService {
       '- Avoid sounding too robotic or overly academic.\n' +
       '- Avoid sounding harsh, scolding, or like you are lecturing the user.\n\n' +
       'Output format:\n' +
-      'Start with a direct answer, then explain each provided source narratively, then end with a short conclusion.\n' +
+      'Calibrate your answer length and structure to the question:\n' +
+      '- Simple or factual questions (counts, quick definitions, brief facts): answer in 1–3 sentences max. Skip separate source sections and a conclusion — just answer directly.\n' +
+      '- Questions asking for Islamic guidance, rulings, explanations, or deeper understanding: use the full format — direct answer, then each source section narratively, then a short conclusion.\n' +
       'After the conclusion, on the very last line, output exactly:\n' +
       'SUMBER: <comma-separated markers you actually used, e.g. S1, S3>\n' +
       'List only markers whose context you genuinely relied on. If you used none, output "SUMBER: -".';
