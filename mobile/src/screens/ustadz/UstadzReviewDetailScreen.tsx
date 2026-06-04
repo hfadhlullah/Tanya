@@ -34,7 +34,7 @@ interface Props {
 }
 
 export function UstadzReviewDetailScreen({ answer, queuePosition, onDone, onBack }: Props) {
-  const [editedBody, setEditedBody] = useState(answer.body);
+  const [editedBody, setEditedBody] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [citationsOpen, setCitationsOpen] = useState(true);
@@ -44,13 +44,13 @@ export function UstadzReviewDetailScreen({ answer, queuePosition, onDone, onBack
   const successOpacity = useRef(new Animated.Value(0)).current;
   const [draftSaved, setDraftSaved] = useState(false);
 
-  const isChanged = editedBody.trim() !== answer.body.trim();
+  const hasFinalAnswer = editedBody.trim().length > 0;
   const charCount = editedBody.length;
 
   // Load saved draft on mount
   useEffect(() => {
     AsyncStorage.getItem(draftKey(answer.id)).then((saved) => {
-      if (saved && saved !== answer.body) setEditedBody(saved);
+      if (saved) setEditedBody(saved);
     });
   }, []);
 
@@ -68,9 +68,8 @@ export function UstadzReviewDetailScreen({ answer, queuePosition, onDone, onBack
   async function handleVerify() {
     setLoading(true);
     try {
-      const changed = editedBody.trim() !== answer.body.trim();
       await verifyAnswer(answer.id, {
-        body: changed ? editedBody.trim() : undefined,
+        body: hasFinalAnswer ? editedBody.trim() : undefined,
         note: reviewerNote.trim() || undefined,
       });
       setSuccess(true);
@@ -217,39 +216,56 @@ export function UstadzReviewDetailScreen({ answer, queuePosition, onDone, onBack
 
         {/* Answer Editor */}
         <View style={s.section}>
-          {/* Label row */}
+          <Text style={s.sectionLabel}>Jawaban AI</Text>
+          <Text style={s.sectionHint}>Draft awal dari sistem. Hanya untuk referensi.</Text>
+          <View style={s.aiAnswerCard}>
+            <Text style={s.aiAnswerText}>{answer.body}</Text>
+          </View>
+        </View>
+
+        <View style={s.section}>
           <View style={s.editorLabelRow}>
             <View style={s.editorLabelLeft}>
-              <Text style={s.sectionLabel}>Jawaban AI</Text>
-              {isChanged && (
+              <Text style={s.sectionLabel}>Jawaban Final Ustadz</Text>
+              {hasFinalAnswer && (
                 <>
                   <View style={s.changedDot} />
-                  <Text style={s.changedText}>Diubah</Text>
+                  <Text style={s.changedText}>Diisi</Text>
                 </>
               )}
             </View>
             <Text style={s.charCount}>{charCount} karakter</Text>
           </View>
+          <Text style={s.sectionHint}>
+            Kosongkan jika ingin menyetujui draft AI apa adanya. Isi jika ingin menerbitkan jawaban versi ustadz.
+          </Text>
 
-          {/* Editor box */}
           <View style={s.editorBox}>
-            {/* Toolbar */}
             <View style={s.editorToolbar}>
               <TouchableOpacity
                 onPress={() => setEditedBody(answer.body)}
                 style={s.toolbarBtn}
                 hitSlop={6}
               >
-                <Text style={s.toolbarBtnText}>⟳ Reset ke AI</Text>
+                <Text style={s.toolbarBtnText}>Salin dari Jawaban AI</Text>
               </TouchableOpacity>
+              {hasFinalAnswer && (
+                <TouchableOpacity
+                  onPress={() => setEditedBody('')}
+                  style={s.toolbarBtn}
+                  hitSlop={6}
+                >
+                  <Text style={s.toolbarBtnText}>Kosongkan</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            {/* Text area */}
             <TextInput
               style={s.editorInput}
               value={editedBody}
               onChangeText={setEditedBody}
               multiline
               textAlignVertical="top"
+              placeholder="Tulis jawaban final yang akan ditampilkan ke pengguna..."
               placeholderTextColor={colors.muted}
             />
           </View>
@@ -282,16 +298,17 @@ export function UstadzReviewDetailScreen({ answer, queuePosition, onDone, onBack
         {/* Reviewer Notes */}
         <View style={s.section}>
           <Text style={s.sectionLabel}>
-            Catatan Reviewer{' '}
+            Catatan Internal Reviewer{' '}
             <Text style={s.sectionLabelOptional}>(opsional)</Text>
           </Text>
+          <Text style={s.sectionHint}>Tidak ditampilkan ke pengguna.</Text>
           <TextInput
             style={s.notesInput}
             value={reviewerNote}
             onChangeText={setReviewerNote}
             multiline
             textAlignVertical="top"
-            placeholder="Tambahkan catatan internal..."
+            placeholder="Tambahkan alasan, koreksi, atau catatan internal..."
             placeholderTextColor={colors.muted}
           />
         </View>
@@ -303,7 +320,10 @@ export function UstadzReviewDetailScreen({ answer, queuePosition, onDone, onBack
           <ActivityIndicator color={colors.emerald} style={{ marginVertical: 16 }} />
         ) : (
           <>
-            <PrimaryButton label="Verifikasi & Publikasikan" onPress={handleVerify} />
+            <PrimaryButton
+              label={hasFinalAnswer ? 'Publikasikan Jawaban Ustadz' : 'Setujui Draft AI'}
+              onPress={handleVerify}
+            />
             <View style={s.ctaSecondaryRow}>
               <SecondaryButton
                 label={draftSaved ? '✓ Tersimpan' : 'Simpan Draft'}
@@ -408,6 +428,23 @@ const s = StyleSheet.create({
     color: colors.line,
     textTransform: 'none',
     letterSpacing: 0,
+  },
+  sectionHint: {
+    fontSize: 13,
+    color: colors.muted,
+    lineHeight: 19,
+  },
+  aiAnswerCard: {
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    borderRadius: 20,
+    padding: 16,
+  },
+  aiAnswerText: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: colors.ink,
   },
 
   // Editor
