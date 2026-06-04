@@ -21,6 +21,9 @@ import { StorageService } from '../storage/storage.service';
 import { OnboardUstadzDto } from './dto/onboard-ustadz.dto';
 import { VerifyAnswerDto } from './dto/verify-answer.dto';
 
+const REVIEW_QUEUE_CHAT_PATTERN =
+  /^(?:hi|hai|halo|hello|assalamualaikum|asalamualaikum|salam|hey|yo|p|ping|tes|test|testing)(?:\s+\w+){0,2}$/iu;
+
 @Injectable()
 export class UstadzService {
   constructor(
@@ -245,7 +248,13 @@ export class UstadzService {
         },
         take: 50,
       })
-      .then((answers) => ({ profileId: profile.id, answers }));
+      .then((answers) => ({
+        profileId: profile.id,
+        answers: answers.filter(
+          (answer) =>
+            !REVIEW_QUEUE_CHAT_PATTERN.test(answer.question.text.trim()),
+        ),
+      }));
   }
 
   async verifyAnswer(userId: string, answerId: string, dto: VerifyAnswerDto) {

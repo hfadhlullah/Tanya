@@ -9,6 +9,80 @@ import { CreateQuestionDto } from './dto/create-question.dto';
 const SENSITIVE_QUESTION_REFUSAL =
   'Maaf, pertanyaan ini tidak dapat kami jawab karena termasuk topik yang dilarang atau berisiko. Silakan ajukan pertanyaan seputar ibadah, akhlak, atau ilmu Islam yang aman dan bermanfaat.';
 
+const CONVERSATIONAL_PHRASES = new Set([
+  'hi',
+  'hai',
+  'halo',
+  'hello',
+  'assalamualaikum',
+  'asalamualaikum',
+  'assalamu alaikum',
+  'assalamu alaikum warahmatullahi wabarakatuh',
+  'assalamualaikum warahmatullahi wabarakatuh',
+  'salam',
+  'p',
+  'ping',
+  'yo',
+  'hey',
+  'whats up',
+  'whatsup',
+  'apa kabar',
+  'gimana kabarnya',
+  'lagi ngapain',
+  'terima kasih',
+  'makasih',
+  'makasi',
+  'thanks',
+  'sip',
+  'oke',
+  'ok',
+  'tes',
+  'test',
+  'testing',
+  'hi bestie',
+]);
+
+const SMALL_TALK_WORDS = new Set([
+  'hi',
+  'hai',
+  'halo',
+  'hello',
+  'assalamualaikum',
+  'asalamualaikum',
+  'salam',
+  'hey',
+  'yo',
+  'whats',
+  'up',
+  'whatsup',
+  'apa',
+  'kabar',
+  'gimana',
+  'kabarnya',
+  'lagi',
+  'ngapain',
+  'makasih',
+  'makasi',
+  'thanks',
+  'terima',
+  'kasih',
+  'oke',
+  'ok',
+  'sip',
+  'bro',
+  'sis',
+  'bestie',
+  'tes',
+  'test',
+  'testing',
+  'cek',
+  'check',
+  'uy',
+]);
+
+const ISLAMIC_QUESTION_SIGNAL =
+  /\b(apa|bagaimana|kenapa|mengapa|bolehkah|bisakah|hukum|haram|halal|wajib|sunnah|makruh|mubah|dalil|ayat|hadits|hadis|doa|shalat|salat|zakat|puasa|haji|umrah|nikah|waris|riba|aurat|najis|wudhu)\b/u;
+
 @Injectable()
 export class QuestionsService {
   constructor(
@@ -171,36 +245,15 @@ export class QuestionsService {
       return false;
     }
 
-    const conversationalPhrases = new Set([
-      'hi',
-      'hai',
-      'halo',
-      'hello',
-      'assalamualaikum',
-      'asalamualaikum',
-      'assalamu alaikum',
-      'assalamu alaikum warahmatullahi wabarakatuh',
-      'assalamualaikum warahmatullahi wabarakatuh',
-      'salam',
-      'p',
-      'ping',
-      'yo',
-      'hey',
-      'whats up',
-      'whatsup',
-      'apa kabar',
-      'gimana kabarnya',
-      'lagi ngapain',
-      'terima kasih',
-      'makasih',
-      'makasi',
-      'thanks',
-      'sip',
-      'oke',
-      'ok',
-    ]);
+    if (CONVERSATIONAL_PHRASES.has(normalized)) {
+      return true;
+    }
 
-    if (conversationalPhrases.has(normalized)) {
+    if (
+      normalized.length <= 20 &&
+      !text.includes('?') &&
+      !ISLAMIC_QUESTION_SIGNAL.test(normalized)
+    ) {
       return true;
     }
 
@@ -209,38 +262,7 @@ export class QuestionsService {
       return false;
     }
 
-    const smallTalkWords = new Set([
-      'hi',
-      'hai',
-      'halo',
-      'hello',
-      'assalamualaikum',
-      'asalamualaikum',
-      'salam',
-      'hey',
-      'yo',
-      'whats',
-      'up',
-      'whatsup',
-      'apa',
-      'kabar',
-      'gimana',
-      'kabarnya',
-      'lagi',
-      'ngapain',
-      'makasih',
-      'makasi',
-      'thanks',
-      'terima',
-      'kasih',
-      'oke',
-      'ok',
-      'sip',
-      'bro',
-      'sis',
-    ]);
-
-    if (tokens.every((token) => smallTalkWords.has(token))) {
+    if (tokens.every((token) => SMALL_TALK_WORDS.has(token))) {
       return true;
     }
 

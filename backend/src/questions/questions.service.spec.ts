@@ -90,6 +90,8 @@ describe('QuestionsService', () => {
     expect(sourcedAnswer.createTierOneAnswer).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'question-1' }),
       prisma,
+      [],
+      'fast',
     );
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
     expect(result.route).toBe('answer_pipeline');
@@ -124,6 +126,7 @@ describe('QuestionsService', () => {
     expect(sourcedAnswer.createConversationalAnswer).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'question-chat-1' }),
       prisma,
+      [],
     );
     expect(sourcedAnswer.createTierOneAnswer).not.toHaveBeenCalled();
     expect(result.route).toBe('conversation');
@@ -156,6 +159,7 @@ describe('QuestionsService', () => {
     expect(sourcedAnswer.createConversationalAnswer).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'question-chat-2' }),
       prisma,
+      [],
     );
     expect(sourcedAnswer.createTierOneAnswer).not.toHaveBeenCalled();
     expect(result.route).toBe('conversation');
@@ -186,7 +190,64 @@ describe('QuestionsService', () => {
     expect(sourcedAnswer.createConversationalAnswer).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'question-chat-3' }),
       prisma,
+      [],
     );
+    expect(result.route).toBe('conversation');
+  });
+
+  it('routes short non-question probes like testing to conversation', async () => {
+    safety.classifyQuestion.mockResolvedValue({ isSensitive: false });
+    prisma.question.create.mockResolvedValue({
+      id: 'question-chat-4',
+      text: 'testing',
+      language: 'id',
+      isSensitive: false,
+      status: 'RECEIVED',
+    });
+    sourcedAnswer.createConversationalAnswer.mockResolvedValue({
+      id: 'answer-chat-4',
+      status: 'VERIFIED',
+      label: null,
+      verified: false,
+    });
+
+    const result = await service.create('user-1', { text: 'testing' });
+
+    expect(llm.complete).not.toHaveBeenCalled();
+    expect(sourcedAnswer.createConversationalAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'question-chat-4' }),
+      prisma,
+      [],
+    );
+    expect(sourcedAnswer.createTierOneAnswer).not.toHaveBeenCalled();
+    expect(result.route).toBe('conversation');
+  });
+
+  it('routes short casual phrases like hi bestie to conversation', async () => {
+    safety.classifyQuestion.mockResolvedValue({ isSensitive: false });
+    prisma.question.create.mockResolvedValue({
+      id: 'question-chat-5',
+      text: 'hi bestie',
+      language: 'id',
+      isSensitive: false,
+      status: 'RECEIVED',
+    });
+    sourcedAnswer.createConversationalAnswer.mockResolvedValue({
+      id: 'answer-chat-5',
+      status: 'VERIFIED',
+      label: null,
+      verified: false,
+    });
+
+    const result = await service.create('user-1', { text: 'hi bestie' });
+
+    expect(llm.complete).not.toHaveBeenCalled();
+    expect(sourcedAnswer.createConversationalAnswer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'question-chat-5' }),
+      prisma,
+      [],
+    );
+    expect(sourcedAnswer.createTierOneAnswer).not.toHaveBeenCalled();
     expect(result.route).toBe('conversation');
   });
 
@@ -321,6 +382,8 @@ describe('QuestionsService', () => {
     expect(sourcedAnswer.createTierOneAnswer).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'question-5' }),
       prisma,
+      [],
+      'fast',
     );
     expect(sourcedAnswer.createConversationalAnswer).not.toHaveBeenCalled();
     expect(result.route).toBe('answer_pipeline');

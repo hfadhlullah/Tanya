@@ -140,11 +140,13 @@ describe('UstadzService', () => {
       id: 'ustadz-1',
       status: UstadzStatus.APPROVED,
     });
-    prisma.answer.findMany.mockResolvedValue([{ id: 'answer-1' }]);
+    prisma.answer.findMany.mockResolvedValue([
+      { id: 'answer-1', question: { text: 'Bagaimana hukum salat?' } },
+    ]);
 
     await expect(service.getReviewQueue('user-1')).resolves.toEqual({
       profileId: 'ustadz-1',
-      answers: [{ id: 'answer-1' }],
+      answers: [{ id: 'answer-1', question: { text: 'Bagaimana hukum salat?' } }],
     });
     expect(prisma.answer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -154,6 +156,37 @@ describe('UstadzService', () => {
         }),
       }),
     );
+  });
+
+  it('filters obvious chat or test items from the review queue', async () => {
+    prisma.ustadzProfile.findUnique.mockResolvedValue({
+      id: 'ustadz-1',
+      status: UstadzStatus.APPROVED,
+    });
+    prisma.answer.findMany.mockResolvedValue([
+      {
+        id: 'answer-chat-1',
+        question: { text: 'testing' },
+      },
+      {
+        id: 'answer-chat-2',
+        question: { text: 'hi bestie' },
+      },
+      {
+        id: 'answer-real-1',
+        question: { text: 'Bagaimana cara mengganti salat yang tertinggal?' },
+      },
+    ]);
+
+    await expect(service.getReviewQueue('user-1')).resolves.toEqual({
+      profileId: 'ustadz-1',
+      answers: [
+        {
+          id: 'answer-real-1',
+          question: { text: 'Bagaimana cara mengganti salat yang tertinggal?' },
+        },
+      ],
+    });
   });
 
   it('blocks review queue for pending ustadz', async () => {
