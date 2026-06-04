@@ -151,6 +151,7 @@ export class CorpusRetrievalService {
         FROM "CorpusChunk" cc
         JOIN "Source" s ON s.id = cc."sourceId"
         WHERE cc.embedding IS NOT NULL AND s.type = 'QURAN'::"SourceType"
+          AND cc.embedding <=> ${vectorLiteral}::vector < 0.5
         ORDER BY cc.embedding <=> ${vectorLiteral}::vector
         LIMIT 3
       `,
@@ -166,6 +167,7 @@ export class CorpusRetrievalService {
         FROM "CorpusChunk" cc
         JOIN "Source" s ON s.id = cc."sourceId"
         WHERE cc.embedding IS NOT NULL AND s.type = 'HADITH'::"SourceType"
+          AND cc.embedding <=> ${vectorLiteral}::vector < 0.5
         ORDER BY cc.embedding <=> ${vectorLiteral}::vector
         LIMIT 3
       `,
@@ -375,6 +377,63 @@ export class CorpusRetrievalService {
     ];
   }
 
+  private readonly STOP_WORDS = new Set([
+    'kenapa',
+    'mengapa',
+    'apakah',
+    'bagaimana',
+    'siapa',
+    'kapan',
+    'dimana',
+    'adalah',
+    'dalam',
+    'untuk',
+    'yang',
+    'dengan',
+    'dari',
+    'ini',
+    'itu',
+    'pada',
+    'dan',
+    'atau',
+    'tidak',
+    'bisa',
+    'akan',
+    'jika',
+    'saya',
+    'kita',
+    'kami',
+    'kamu',
+    'anda',
+    'juga',
+    'sudah',
+    'boleh',
+    'harus',
+    'lebih',
+    'cara',
+    'bagian',
+    'tentang',
+    'setelah',
+    'sebelum',
+    'jadi',
+    'bagi',
+    'oleh',
+    'atas',
+    'saat',
+    'agar',
+    'supaya',
+    'bahwa',
+    'namun',
+    'tetapi',
+    'namun',
+    'juga',
+    'masih',
+    'pula',
+    'lagi',
+    'saja',
+    'pun',
+  ]);
+
   private extractTerms(text: string) {
     return Array.from(
       new Set(
@@ -384,6 +443,7 @@ export class CorpusRetrievalService {
           .split(/\s+/)
           .map((term) => term.trim())
           .filter((term) => term.length >= 3)
+          .filter((term) => !this.STOP_WORDS.has(term))
           .slice(0, 6),
       ),
     );
