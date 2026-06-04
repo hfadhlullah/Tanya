@@ -426,21 +426,6 @@ export class SourcedAnswerService {
       intent +
       '"}\n' +
       'In "usedSources", list only the markers (e.g. S1, S3) whose context you genuinely relied on. If you used none, return an empty array. The "answer" value is the user-facing text and must not contain the markers.';
-        : '- Do NOT mention or invent any ustadz opinion; no Ustadz review context was provided.\n') +
-      '- Do not give a legal ruling stronger than the retrieved context supports.\n' +
-      '- Use gentle wording such as "berdasarkan konteks yang tersedia".\n' +
-      '- Avoid sounding too robotic or overly academic.\n' +
-      '- Avoid sounding harsh, scolding, or like you are lecturing the user.\n\n' +
-      'Output format:\n' +
-      '- First, read the question carefully to detect its intent:\n' +
-      '  · If the question starts with "Kenapa", "Mengapa", or "Why", open with a sentence that directly states the reason — e.g. "Makan babi haram dikarenakan..." or "Hal ini diharamkan karena...". Do NOT restate the fact the user already knows.\n' +
-      '  · If the question starts with "Apa", "Bagaimana", or "How/What", open with a direct answer to that specific angle.\n' +
-      '  · For other question types, open naturally matching the question.\n' +
-      '- Then explain each provided source narratively.\n' +
-      '- End with a short conclusion.\n' +
-      'After the conclusion, on the very last line, output exactly:\n' +
-      'SUMBER: <comma-separated markers you actually used, e.g. S1, S3>\n' +
-      'List only markers whose context you genuinely relied on. If you used none, output "SUMBER: -".';
 
     let raw: string;
     try {
